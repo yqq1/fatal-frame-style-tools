@@ -1,0 +1,9 @@
+services:
+  fatal-frame:
+    build: .
+    container_name: fatal-frame
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data/notes:/app/data/notes
+    restart: unless-stopped

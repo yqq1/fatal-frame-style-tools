@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.npm-cache/
+.tsbuild/
+.venv-whisperx/
+*.log
+*.tsbuildinfo
+qa-*.png
+server-smoke.*
+
+# Local generated media/tool artifacts
+data/whisper-uploads/
+data/whisper-outputs/
+data/demucs-uploads/
+data/demucs-outputs/
+
+# Keep editable app data explicit; add files back with -f only if needed.
+data/**/*.mp3
+data/**/*.m4a
+data/**/*.wav
+data/**/*.flac
+data/**/*.ogg
+data/**/*.mp4
+data/**/*.webm
+
+# Large local video assets are not stored in git.
+public/videos/

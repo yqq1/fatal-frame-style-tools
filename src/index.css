@@ -1,0 +1,45 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --font-body: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif;
+  --font-ritual: KaiTi, STKaiti, "Kaiti SC", "FangSong", "Noto Serif SC", "Songti SC", serif;
+  --font-latin: Georgia, "Times New Roman", serif;
+
+  color: oklch(91% 0.012 48);
+  background: oklch(13% 0.012 28);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid oklch(66% 0.14 28);
+  outline-offset: 3px;
+}
+
+#root {
+  min-height: 100vh;
+}
