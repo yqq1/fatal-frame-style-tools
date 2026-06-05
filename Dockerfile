@@ -8,6 +8,7 @@ WORKDIR /app
 COPY dist ./dist
 COPY server.mjs ./server.mjs
 COPY data/notes ./seed-notes
+COPY src/data ./src/data
 
 # 4. 创建运行时笔记目录，实际部署时建议挂载 volume
 RUN mkdir -p /app/data/notes
