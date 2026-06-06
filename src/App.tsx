@@ -28,6 +28,7 @@ import MiniMusicPlayer from './components/MiniMusicPlayer';
 import MusicView from './components/MusicView';
 import VideoView from './components/VideoView';
 import WhisperWorkbench from './components/WhisperWorkbench';
+import { LyricPictureInPictureProvider } from './context/LyricPictureInPictureContext';
 import { MusicPlayerProvider } from './context/MusicPlayerContext';
 import { blogPosts } from './lib/blogPosts';
 import { musicTracks } from './data/music';
@@ -204,6 +205,7 @@ function App() {
 
   return (
     <MusicPlayerProvider>
+    <LyricPictureInPictureProvider>
     <main className="shell desktop-shell" ref={shellRef}>
       <div className="grain" />
       <div className="pattern-veil" aria-hidden="true" />
@@ -326,6 +328,7 @@ function App() {
         setMobileToolMode('list');
       }}
     />
+    </LyricPictureInPictureProvider>
     </MusicPlayerProvider>
   );
 }

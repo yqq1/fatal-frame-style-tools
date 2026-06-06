@@ -1,4 +1,5 @@
 import {
+  Captions,
   ChevronDown,
   ListMusic,
   Music,
@@ -12,13 +13,16 @@ import {
   VolumeX,
 } from 'lucide-react';
 import gsap from 'gsap';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import type { PlaybackMode } from '../context/MusicPlayerContext';
+import { useLyricPictureInPictureControls } from '../context/LyricPictureInPictureContext';
 import type { MusicLyricLine, MusicTrack } from '../data/music';
 import useLyricDragScroll from '../hooks/useLyricDragScroll';
 import useMusicMotion from '../hooks/useMusicMotion';
+import useRuntimeMusicLyrics from '../hooks/useRuntimeMusicLyrics';
+import { getActiveLyricIndex } from '../lib/musicLyricSync';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -41,23 +45,6 @@ function getMaxScrollTop(element: HTMLElement) {
 
 function getTrackDuration(track: MusicTrack, duration: number) {
   return duration > 0 ? formatTime(duration) : track.duration;
-}
-
-function getActiveLyricIndex(lyrics: MusicLyricLine[], currentTime: number) {
-  if (!lyrics.length) {
-    return -1;
-  }
-
-  let activeIndex = -1;
-  for (let index = 0; index < lyrics.length; index += 1) {
-    if (currentTime >= lyrics[index].time) {
-      activeIndex = index;
-    } else {
-      break;
-    }
-  }
-
-  return activeIndex;
 }
 
 type MusicViewProps = {
@@ -265,7 +252,8 @@ function MusicPlayerShell({ variant }: {
 }) {
   const motionRootRef = useRef<HTMLDivElement | null>(null);
   const [lyricPulseKey, setLyricPulseKey] = useState(0);
-  const [runtimeLyrics, setRuntimeLyrics] = useState<Record<string, MusicLyricLine[]>>({});
+  const runtimeLyrics = useRuntimeMusicLyrics();
+  const lyricPip = useLyricPictureInPictureControls();
   const {
     canMove,
     currentTime,
@@ -303,32 +291,6 @@ function MusicPlayerShell({ variant }: {
     lyricPulseKey,
     selectedTrackId: selectedTrack.id,
   });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadRuntimeLyrics() {
-      try {
-        const response = await fetch('/api/music/generated-lyrics');
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
-        if (!cancelled && data.lyrics) {
-          setRuntimeLyrics(data.lyrics);
-        }
-      } catch {
-        return;
-      }
-    }
-
-    loadRuntimeLyrics();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   function seekToLyric(time: number) {
     seekTo(time);
@@ -369,6 +331,22 @@ function MusicPlayerShell({ variant }: {
             trackDuration={getTrackDuration(selectedTrack, duration)}
             volume={volume}
             volumeProgress={volumeProgress}
+            lyricPipControl={
+              lyricPip.isAvailable ? (
+                <button
+                  className={`music-control music-lyric-pip-control ${lyricPip.isOpen ? 'active' : ''}`}
+                  type="button"
+                  aria-label={lyricPip.isOpen ? '关闭字幕小窗' : '打开字幕小窗'}
+                  aria-pressed={lyricPip.isOpen}
+                  onClick={() => {
+                    void lyricPip.toggle();
+                  }}
+                >
+                  <Captions size={18} aria-hidden="true" />
+                  <span>字幕小窗</span>
+                </button>
+              ) : null
+            }
             onMute={toggleMute}
             onPlaybackModeChange={setPlaybackMode}
             onPlayToggle={togglePlay}
@@ -508,6 +486,103 @@ function PlaybackModePicker({
   );
 }
 
+function VolumePicker({
+  isMuted,
+  volume,
+  volumeProgress,
+  onMute,
+  onVolumeChange,
+}: {
+  isMuted: boolean;
+  volume: number;
+  volumeProgress: number;
+  onMute: () => void;
+  onVolumeChange: (value: number) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const pickerRef = useRef<HTMLSpanElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      const picker = pickerRef.current;
+      if (!picker || !(event.target instanceof Node) || picker.contains(event.target)) {
+        return;
+      }
+
+      setIsOpen(false);
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [isOpen]);
+
+  useLayoutEffect(() => {
+    const popover = popoverRef.current;
+    if (!popover || !isOpen || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const context = gsap.context(() => {
+      gsap.fromTo(
+        popover,
+        { y: 8, scale: 0.96, autoAlpha: 0 },
+        { y: 0, scale: 1, autoAlpha: 1, duration: 0.2, ease: 'power3.out', overwrite: 'auto' },
+      );
+    }, popover);
+
+    return () => context.revert();
+  }, [isOpen]);
+
+  return (
+    <span
+      className={`music-volume-picker ${isOpen ? 'open' : ''}`}
+      ref={pickerRef}
+    >
+      <button
+        className={`music-control ${isMuted || isOpen ? 'active' : ''}`}
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-label={isOpen ? (isMuted ? '恢复音量' : '静音') : '打开音量调节'}
+        onClick={() => {
+          if (isOpen) {
+            onMute();
+            return;
+          }
+
+          setIsOpen(true);
+        }}
+      >
+        {isMuted ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
+      </button>
+      {isOpen ? (
+        <div className="music-volume-popover" ref={popoverRef} role="dialog" aria-label="音量调节">
+          <span className="music-volume-shell" style={{ '--music-volume': `${volumeProgress}%` } as CSSProperties}>
+            <input
+              aria-label="音量"
+              className="music-volume-range"
+              max={1}
+              min={0}
+              step={0.01}
+              type="range"
+              value={isMuted ? 0 : volume}
+              onChange={(event) => onVolumeChange(Number(event.target.value))}
+            />
+          </span>
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
 function MusicControls({
   canMove,
   currentTime,
@@ -519,6 +594,7 @@ function MusicControls({
   trackDuration,
   volume,
   volumeProgress,
+  lyricPipControl,
   onMute,
   onPlaybackModeChange,
   onPlayToggle,
@@ -537,6 +613,7 @@ function MusicControls({
   trackDuration: string;
   volume: number;
   volumeProgress: number;
+  lyricPipControl?: ReactNode;
   onMute: () => void;
   onPlaybackModeChange: (mode: PlaybackMode) => void;
   onPlayToggle: () => void;
@@ -578,21 +655,14 @@ function MusicControls({
           <SkipForward size={18} aria-hidden="true" />
         </button>
         <PlaybackModePicker canShuffle={canMove} mode={playbackMode} onModeChange={onPlaybackModeChange} />
-        <button className={`music-control ${isMuted ? 'active' : ''}`} type="button" aria-label={isMuted ? '取消静音' : '静音'} onClick={onMute}>
-          {isMuted ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
-        </button>
-        <span className="music-volume-shell" style={{ '--music-volume': `${volumeProgress}%` } as CSSProperties}>
-          <input
-            aria-label="音量"
-            className="music-volume-range"
-            max={1}
-            min={0}
-            step={0.01}
-            type="range"
-            value={isMuted ? 0 : volume}
-            onChange={(event) => onVolumeChange(Number(event.target.value))}
-          />
-        </span>
+        {lyricPipControl}
+        <VolumePicker
+          isMuted={isMuted}
+          volume={volume}
+          volumeProgress={volumeProgress}
+          onMute={onMute}
+          onVolumeChange={onVolumeChange}
+        />
       </div>
     </div>
   );

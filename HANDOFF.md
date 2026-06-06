@@ -1,50 +1,42 @@
 # HANDOFF.md
 
+## Current Task
+- Implementing browser-based synced lyrics Picture-in-Picture for the music player.
+- User explicitly abandoned Electron/desktop implementation.
+- Pure web PiP cannot remove the browser/PiP title bar or support click-through.
+
 ## Current State
-- Project has been pushed to GitHub on `main`: `yqq1/fatal-frame-style-tools.git`.
-- `public/videos/` is intentionally ignored and not committed; video files must be supplied separately on deployment if the video page is needed.
-- `dist/` is ignored. User deploys by copying built `dist` plus server/runtime files to the server, not by pulling/building from Git.
+- Working tree has uncommitted changes for music PiP and volume controls.
+- `rtk npm run build` passed after the latest changes.
+- No README file exists in the project root.
 
-## Confirmed Facts
-- `server.mjs` serves `dist` and APIs for notes, Whisper, Demucs, generated lyrics, and storage cleanup.
-- Dockerfile expects these paths in the server project directory: `dist/`, `server.mjs`, `data/notes/`, `src/data/`.
-- `src/data` is required at runtime because `server.mjs` reads `src/data/generatedMusicLyrics.ts` and `src/data/music.ts`.
-- `music.ts` imports `musicLyrics.ts`; copying the whole `src/data/` directory is safest.
-- Notes runtime directory is `/app/data/notes`; `data/notes` copied into the image is only seed data.
-- Storage cleanup API: automatic cleanup uses 48-hour TTL and 3 GiB cap; settings-page button clears all unprotected managed temp files.
+## Changed Files
+- `src/App.tsx`: wraps app content in `LyricPictureInPictureProvider` inside `MusicPlayerProvider`.
+- `src/components/MusicView.tsx`: music player owns the “字幕小窗” button; volume control uses a popover slider. When popover is closed, clicking volume opens it; when open, clicking volume toggles mute/restore; outside click closes it.
+- `src/hooks/useLyricPictureInPicture.ts`: browser `documentPictureInPicture` window, restored to prior dark crimson viewfinder PiP content style, with GSAP lyric transition.
+- `src/context/LyricPictureInPictureContext.tsx`: keeps PiP lyric sync global while audio keeps playing.
+- `src/hooks/useRuntimeMusicLyrics.ts`: loads runtime generated lyrics from `/api/music/generated-lyrics`.
+- `src/lib/musicLyricSync.ts`: shared active lyric line/index helpers.
+- `src/vite-env.d.ts`: declares `documentPictureInPicture` browser API.
+- `src/App.css`: music controls, lyric PiP button, and volume popover styles.
 
-## Deployment Notes
-- Minimum server project layout:
-  - `dist/`
-  - `server.mjs`
-  - `Dockerfile`
-  - `data/notes/`
-  - `src/data/generatedMusicLyrics.ts`
-  - `src/data/music.ts`
-  - `src/data/musicLyrics.ts`
-- Dockerfile should include `COPY src/data ./src/data`.
-- If mounting generated lyrics for persistence, the host path must be a file, not a directory:
-  - Good: `/data/fatal-frame/generatedMusicLyrics.ts` is a real file.
-  - Bad: Docker auto-created `/data/fatal-frame/generatedMusicLyrics.ts/` as a directory.
-- To fix a bad mount on the server:
-  - `rm -rf /data/fatal-frame/generatedMusicLyrics.ts`
-  - `mkdir -p /data/fatal-frame`
-  - `cp ./src/data/generatedMusicLyrics.ts /data/fatal-frame/generatedMusicLyrics.ts`
-- If no persistence is needed, remove the file mount and rely on `COPY src/data ./src/data`.
+## Decisions
+- PiP button belongs on the full music player, not the mini player.
+- Mini player should not include subtitle/PiP controls.
+- No Electron dependency or desktop scripts should be added.
+- PiP window content should use the restored previous dark crimson viewfinder style; do not restyle it from prose descriptions unless asked.
+- The browser/PiP chrome shown above the window is not page content and cannot be removed in pure web.
 
 ## Priority Files
-- `server.mjs`
-- `Dockerfile`
-- `docker-compose.yml`
-- `src/App.tsx`
+- `src/components/MusicView.tsx`
+- `src/hooks/useLyricPictureInPicture.ts`
+- `src/context/LyricPictureInPictureContext.tsx`
+- `src/hooks/useRuntimeMusicLyrics.ts`
+- `src/lib/musicLyricSync.ts`
 - `src/App.css`
-- `src/components/WhisperWorkbench.tsx`
-- `src/components/DemucsWorkbench.tsx`
-- `src/components/LyricTimingWorkbench.tsx`
-- `src/data/music.ts`
-- `src/data/generatedMusicLyrics.ts`
+- `src/App.tsx`
 
 ## Risks / Remaining Work
-- Server-side Whisper/Demucs inside Docker is not configured for Python/CUDA; current Docker deployment is mainly for the web UI and Node APIs.
-- `src/data/generatedMusicLyrics.ts` changes made in the running container are lost on rebuild unless mounted to a real host file.
-- No auth is implemented for notes, lyrics, cleanup, Whisper, or Demucs APIs.
+- PiP support depends on Chromium `documentPictureInPicture`; unsupported browsers will not show the subtitle-window button.
+- Visual QA in the browser has not been performed in this handoff; only build verification is confirmed.
+- Existing deployment facts still apply: `dist/` is ignored; server deployment copies built `dist` plus runtime files, and `src/data` is required at runtime by `server.mjs`.
