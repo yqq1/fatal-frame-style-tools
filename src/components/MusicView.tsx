@@ -332,20 +332,20 @@ function MusicPlayerShell({ variant }: {
             volume={volume}
             volumeProgress={volumeProgress}
             lyricPipControl={
-              lyricPip.isAvailable ? (
-                <button
-                  className={`music-control music-lyric-pip-control ${lyricPip.isOpen ? 'active' : ''}`}
-                  type="button"
-                  aria-label={lyricPip.isOpen ? '关闭字幕小窗' : '打开字幕小窗'}
-                  aria-pressed={lyricPip.isOpen}
-                  onClick={() => {
-                    void lyricPip.toggle();
-                  }}
-                >
-                  <Captions size={18} aria-hidden="true" />
-                  <span>字幕小窗</span>
-                </button>
-              ) : null
+              <button
+                className={`music-control music-lyric-pip-control ${lyricPip.isOpen ? 'active' : ''} ${lyricPip.isAvailable ? '' : 'unavailable'}`}
+                type="button"
+                aria-label={lyricPip.isAvailable ? (lyricPip.isOpen ? '关闭字幕小窗' : '打开字幕小窗') : lyricPip.unavailableReason}
+                aria-pressed={lyricPip.isOpen}
+                disabled={!lyricPip.isAvailable}
+                title={lyricPip.isAvailable ? undefined : lyricPip.unavailableReason}
+                onClick={() => {
+                  void lyricPip.toggle();
+                }}
+              >
+                <Captions size={18} aria-hidden="true" />
+                <span>字幕小窗</span>
+              </button>
             }
             onMute={toggleMute}
             onPlaybackModeChange={setPlaybackMode}

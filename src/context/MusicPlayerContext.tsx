@@ -31,22 +31,72 @@ type MusicPlayerContextValue = {
 };
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null);
+const musicPlayerStorageKey = 'fatal-frame.music-player.preferences';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function loadMusicPlayerPreferences() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(musicPlayerStorageKey);
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawValue) as {
+      isMuted?: boolean;
+      playbackMode?: PlaybackMode;
+      volume?: number;
+    };
+
+    const volume = typeof parsed.volume === 'number' ? clamp(parsed.volume, 0, 1) : 0.82;
+    const playbackMode: PlaybackMode =
+      parsed.playbackMode === 'repeat-one' || parsed.playbackMode === 'shuffle' ? parsed.playbackMode : 'sequence';
+
+    return {
+      isMuted: Boolean(parsed.isMuted),
+      playbackMode,
+      volume,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildShuffleQueue(currentIndex: number) {
+  const queue = musicTracks
+    .map((_, index) => index)
+    .filter((index) => index !== currentIndex);
+
+  for (let index = queue.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [queue[index], queue[randomIndex]] = [queue[randomIndex], queue[index]];
+  }
+
+  return queue;
+}
+
 export function MusicPlayerProvider({ children }: { children: ReactNode }) {
+  const storedPreferences = loadMusicPlayerPreferences();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const previousPlaybackModeRef = useRef<PlaybackMode>('sequence');
   const shouldAutoplayRef = useRef(false);
+  // Shuffle uses a precomputed queue so one round doesn't repeat tracks.
+  const shuffleHistoryRef = useRef<number[]>([]);
+  const shuffleQueueRef = useRef<number[]>([]);
   const [selectedId, setSelectedId] = useState(musicTracks[0]?.id ?? '');
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(0.82);
-  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(storedPreferences?.volume ?? 0.82);
+  const [isMuted, setIsMuted] = useState(storedPreferences?.isMuted ?? false);
   const [hasError, setHasError] = useState(false);
-  const [playbackMode, setPlaybackMode] = useState<PlaybackMode>('sequence');
+  const [playbackMode, setPlaybackMode] = useState<PlaybackMode>(storedPreferences?.playbackMode ?? 'sequence');
 
   const selectedTrack = useMemo(
     () => musicTracks.find((track) => track.id === selectedId) ?? musicTracks[0],
@@ -58,6 +108,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumeProgress = isMuted ? 0 : volume * 100;
 
+  const resetShuffleState = useCallback((currentIndex: number) => {
+    shuffleHistoryRef.current = [];
+    shuffleQueueRef.current = buildShuffleQueue(currentIndex);
+  }, []);
+
+  const clearShuffleState = useCallback(() => {
+    shuffleHistoryRef.current = [];
+    shuffleQueueRef.current = [];
+  }, []);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) {
@@ -67,6 +127,21 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     audio.volume = volume;
     audio.muted = isMuted;
   }, [volume, isMuted]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        musicPlayerStorageKey,
+        JSON.stringify({
+          isMuted,
+          playbackMode,
+          volume,
+        }),
+      );
+    } catch {
+      return;
+    }
+  }, [isMuted, playbackMode, volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -135,13 +210,42 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     void playAudio();
   }, [isPlaying, pauseAudio, playAudio]);
 
-  const selectTrack = useCallback(
-    (id: string, autoplay = isPlaying) => {
+  const selectTrackInternal = useCallback(
+    (id: string, autoplay = isPlaying, resetShuffleQueue = true) => {
       shouldAutoplayRef.current = autoplay;
       setSelectedId(id);
+
+      if (!resetShuffleQueue || playbackMode !== 'shuffle') {
+        return;
+      }
+
+      const nextIndex = musicTracks.findIndex((track) => track.id === id);
+      resetShuffleState(nextIndex >= 0 ? nextIndex : safeSelectedIndex);
     },
-    [isPlaying],
+    [isPlaying, playbackMode, resetShuffleState, safeSelectedIndex],
   );
+
+  const selectTrack = useCallback(
+    (id: string, autoplay = isPlaying) => {
+      selectTrackInternal(id, autoplay, true);
+    },
+    [isPlaying, selectTrackInternal],
+  );
+
+  useEffect(() => {
+    if (previousPlaybackModeRef.current === playbackMode) {
+      return;
+    }
+
+    previousPlaybackModeRef.current = playbackMode;
+
+    if (playbackMode === 'shuffle') {
+      resetShuffleState(safeSelectedIndex);
+      return;
+    }
+
+    clearShuffleState();
+  }, [clearShuffleState, playbackMode, resetShuffleState, safeSelectedIndex]);
 
   const getNextIndex = useCallback(
     (direction: 1 | -1) => {
@@ -150,11 +254,30 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (playbackMode === 'shuffle') {
-        const nextIndexes = musicTracks
-          .map((_, index) => index)
-          .filter((index) => index !== safeSelectedIndex);
+        if (direction === -1 && shuffleHistoryRef.current.length === 0) {
+          return safeSelectedIndex;
+        }
 
-        return nextIndexes[Math.floor(Math.random() * nextIndexes.length)] ?? safeSelectedIndex;
+        if (direction === -1 && shuffleHistoryRef.current.length > 0) {
+          const previousIndex = shuffleHistoryRef.current.pop();
+
+          if (previousIndex !== undefined) {
+            shuffleQueueRef.current.unshift(safeSelectedIndex);
+            return previousIndex;
+          }
+        }
+
+        if (!shuffleQueueRef.current.length) {
+          shuffleQueueRef.current = buildShuffleQueue(safeSelectedIndex);
+        }
+
+        const nextIndex = shuffleQueueRef.current.shift();
+        if (nextIndex === undefined) {
+          return safeSelectedIndex;
+        }
+
+        shuffleHistoryRef.current.push(safeSelectedIndex);
+        return nextIndex;
       }
 
       return (safeSelectedIndex + direction + musicTracks.length) % musicTracks.length;
@@ -166,10 +289,10 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     (direction: 1 | -1, autoplay = true) => {
       const nextTrack = musicTracks[getNextIndex(direction)];
       if (nextTrack) {
-        selectTrack(nextTrack.id, autoplay);
+        selectTrackInternal(nextTrack.id, autoplay, false);
       }
     },
-    [getNextIndex, selectTrack],
+    [getNextIndex, selectTrackInternal],
   );
 
   const seekTo = useCallback(

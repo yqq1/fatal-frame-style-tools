@@ -5,6 +5,18 @@ function isLyricPipAvailable() {
   return Boolean(window.documentPictureInPicture);
 }
 
+function getLyricPipUnavailableReason() {
+  if (!window.isSecureContext) {
+    return '字幕小窗需要 HTTPS 或 localhost 环境';
+  }
+
+  if (!window.documentPictureInPicture) {
+    return '当前浏览器不支持字幕小窗，请使用桌面版 Chrome 或 Edge';
+  }
+
+  return '';
+}
+
 function writeLyricPipDocument(pipWindow: Window) {
   pipWindow.document.open();
   pipWindow.document.write(`<!doctype html>
@@ -189,6 +201,7 @@ export default function useLyricPictureInPicture(ja: string, zh: string) {
   const pipWindowRef = useRef<Window | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const isAvailable = isLyricPipAvailable();
+  const unavailableReason = isAvailable ? '' : getLyricPipUnavailableReason();
 
   useEffect(() => {
     const pipWindow = pipWindowRef.current;
@@ -232,5 +245,6 @@ export default function useLyricPictureInPicture(ja: string, zh: string) {
     isAvailable,
     isOpen,
     toggle,
+    unavailableReason,
   };
 }

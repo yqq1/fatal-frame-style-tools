@@ -8,6 +8,7 @@ type LyricPictureInPictureContextValue = {
   isAvailable: boolean;
   isOpen: boolean;
   toggle: () => void;
+  unavailableReason: string;
 };
 
 const LyricPictureInPictureContext = createContext<LyricPictureInPictureContextValue | null>(null);

@@ -13,7 +13,7 @@ export type MusicTrack = {
   artist: string;
   duration: string;
   src: string;
-  type: 'audio/mpeg' | 'audio/mp4' | 'audio/wav' | 'audio/ogg' | 'audio/flac';
+  type: 'audio/mpeg' | 'audio/mp4' | 'audio/wav' | 'audio/ogg' | 'audio/flac' | 'video/mp4';
   cover?: string;
   lyrics?: MusicLyricLine[];
 };

@@ -20,6 +20,8 @@ import { videos } from '../data/videos';
 import type { VideoItem, VideoSource } from '../data/videos';
 import useVideoRitualMotion from '../hooks/useVideoRitualMotion';
 
+const videoPlayerStorageKey = 'fatal-frame.video-player.preferences';
+
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
     return '0:00';
@@ -29,6 +31,11 @@ function formatTime(value: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function getVideoDurationLabel(video: VideoItem) {
+  const duration = video.duration.trim();
+  return duration && duration !== '00:00' ? duration : '';
 }
 
 function inferVideoType(src: string) {
@@ -54,6 +61,31 @@ function getDefaultSourceIndex(video: VideoItem, sources: VideoSource[]) {
 
   const index = sources.findIndex((source) => source.quality === video.defaultQuality || source.label === video.defaultQuality);
   return index >= 0 ? index : 0;
+}
+
+function loadVideoPlayerPreferences() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(videoPlayerStorageKey);
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawValue) as {
+      isMuted?: boolean;
+      volume?: number;
+    };
+
+    return {
+      isMuted: Boolean(parsed.isMuted),
+      volume: typeof parsed.volume === 'number' ? Math.min(Math.max(parsed.volume, 0), 1) : 0.82,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function RitualMarks() {
@@ -121,14 +153,16 @@ function VideoPlayer({
   const motionRootRef = useRef<HTMLDivElement | null>(null);
   const pendingSourceSwitchRef = useRef<{ time: number; shouldPlay: boolean } | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
+  const storedPreferences = loadVideoPlayerPreferences();
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(() => getDefaultSourceIndex(selectedVideo, getVideoSources(selectedVideo)));
   const [isPlaying, setIsPlaying] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(0.82);
-  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(storedPreferences?.volume ?? 0.82);
+  const [isMuted, setIsMuted] = useState(storedPreferences?.isMuted ?? false);
   const [hasError, setHasError] = useState(false);
+  const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isVolumePanelOpen, setIsVolumePanelOpen] = useState(false);
@@ -139,6 +173,7 @@ function VideoPlayer({
   const safeSourceIndex = videoSources.length > 0 ? Math.min(selectedSourceIndex, videoSources.length - 1) : 0;
   const selectedSource = videoSources[safeSourceIndex];
   const selectedSourceLabel = selectedSource ? getSourceLabel(selectedSource, safeSourceIndex) : '';
+  const selectedDurationLabel = getVideoDurationLabel(selectedVideo);
   const sourceHint = videoSources.map((source, index) => `${getSourceLabel(source, index)}: ${source.src}`).join(' 或 ');
   const shouldHideControls = isPlaying && !isControlsVisible && !isQualityMenuOpen && !isVolumePanelOpen && !hasError;
 
@@ -155,6 +190,20 @@ function VideoPlayer({
   }, [volume, isMuted]);
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        videoPlayerStorageKey,
+        JSON.stringify({
+          isMuted,
+          volume,
+        }),
+      );
+    } catch {
+      return;
+    }
+  }, [isMuted, volume]);
+
+  useEffect(() => {
     setSelectedSourceIndex(getDefaultSourceIndex(selectedVideo, getVideoSources(selectedVideo)));
     pendingSourceSwitchRef.current = null;
     clearControlsHideTimer();
@@ -162,6 +211,7 @@ function VideoPlayer({
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
+    setHasPlaybackStarted(false);
     setHasError(false);
     setIsQualityMenuOpen(false);
     setIsVolumePanelOpen(false);
@@ -444,7 +494,7 @@ function VideoPlayer({
     <div className="video-grid" ref={motionRootRef}>
       <section className="video-stage" aria-label="视频播放器">
         <div
-          className={`video-frame ${isPlaying ? 'playing' : 'paused'} ${shouldHideControls ? 'controls-hidden' : ''}`}
+          className={`video-frame ${isPlaying ? 'playing' : 'paused'} ${hasPlaybackStarted ? 'has-playback' : 'poster-preview'} ${shouldHideControls ? 'controls-hidden' : ''}`}
           ref={frameRef}
           onFocusCapture={revealControls}
           onPointerEnter={revealControls}
@@ -458,7 +508,10 @@ function VideoPlayer({
             onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-            onPlay={() => setIsPlaying(true)}
+            onPlay={() => {
+              setHasPlaybackStarted(true);
+              setIsPlaying(true);
+            }}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
             onError={() => {
@@ -470,7 +523,7 @@ function VideoPlayer({
           <div className="video-shade" />
 
           <div className="video-copy">
-            <span>{selectedVideo.duration}</span>
+            {selectedDurationLabel ? <span>{selectedDurationLabel}</span> : null}
             <h2>{selectedVideo.title}</h2>
             <p>{selectedVideo.genre}</p>
             <em>{selectedVideo.description}</em>
@@ -647,7 +700,7 @@ function VideoPlayer({
         </div>
         {variant === 'mobile' ? (
           <div className="mobile-video-copy">
-            <span>{selectedVideo.duration}</span>
+            {selectedDurationLabel ? <span>{selectedDurationLabel}</span> : null}
             <h2>{selectedVideo.title}</h2>
             <p>{selectedVideo.genre}</p>
             <em>{selectedVideo.description}</em>
@@ -667,6 +720,7 @@ function VideoPlayer({
         <div className="video-items">
           {videos.map((video) => {
             const isSelected = video.id === selectedVideo.id;
+            const durationLabel = getVideoDurationLabel(video);
 
             return (
               <button
@@ -681,7 +735,7 @@ function VideoPlayer({
                 <VideoThumbnail video={video} isSelected={isSelected} />
                 <span className="video-item-copy">
                   <strong>{video.title}</strong>
-                  <em>{video.duration}</em>
+                  {durationLabel ? <em>{durationLabel}</em> : null}
                 </span>
               </button>
             );
