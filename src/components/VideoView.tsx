@@ -135,7 +135,7 @@ function VideoView({ variant = 'desktop' }: VideoViewProps) {
     );
   }
 
-  return <VideoPlayer key={selectedVideo.id} selectedVideo={selectedVideo} variant={variant} onSelect={setSelectedId} />;
+  return <VideoPlayer selectedVideo={selectedVideo} variant={variant} onSelect={setSelectedId} />;
 }
 
 function VideoPlayer({

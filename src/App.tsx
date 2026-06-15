@@ -35,6 +35,7 @@ import { musicTracks } from './data/music';
 import { videos } from './data/videos';
 import type { MobileToolCategory, MobileToolMode, NavKey, ToolCategory, ToolDefinition } from './types/toolbox';
 import useInterfaceMotion from './hooks/useInterfaceMotion';
+import './styles/video.css';
 import './App.css';
 
 const categoryLabels: Record<ToolCategory, string> = {
