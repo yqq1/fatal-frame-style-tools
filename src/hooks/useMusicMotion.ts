@@ -50,6 +50,22 @@ function useMusicMotion(
           clearProps: 'transform,visibility',
         },
       );
+
+      const selectedItem = root.querySelector('.music-item.selected');
+      if (selectedItem) {
+        gsap.fromTo(
+          selectedItem,
+          { x: -8, autoAlpha: 0.78 },
+          {
+            x: 0,
+            autoAlpha: 1,
+            duration: 0.26,
+            ease: 'power3.out',
+            overwrite: 'auto',
+            clearProps: 'transform,visibility',
+          },
+        );
+      }
     }, root);
 
     return () => context.revert();

@@ -28,6 +28,7 @@ import MiniMusicPlayer from './components/MiniMusicPlayer';
 import MusicView from './components/MusicView';
 import VideoView from './components/VideoView';
 import WhisperWorkbench from './components/WhisperWorkbench';
+import { SpotlightCard } from './components/ui/SpotlightCard';
 import { LyricPictureInPictureProvider } from './context/LyricPictureInPictureContext';
 import { MusicPlayerProvider } from './context/MusicPlayerContext';
 import { blogPosts } from './lib/blogPosts';
@@ -346,10 +347,11 @@ function ToolCard({
   const Icon = toolIcons[tool.icon];
 
   return (
-    <button
+    <SpotlightCard
       className={`tool-card ${selected ? 'selected' : ''}`}
       data-motion="item"
       aria-pressed={selected}
+      spotlightColor="oklch(64% 0.16 25 / 0.24)"
       onClick={onSelect}
     >
       <span className="tool-icon">
@@ -360,7 +362,7 @@ function ToolCard({
         <span>{tool.description}</span>
       </span>
       <span className="tool-meta">{categoryLabels[tool.category]}</span>
-    </button>
+    </SpotlightCard>
   );
 }
 

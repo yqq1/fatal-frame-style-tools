@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "import:videos": "node scripts/import-videos.mjs",
     "validate:videos": "node scripts/validate-video-assets.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "start": "node server.mjs"

@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import BlogView from './BlogView';
 import MusicView from './MusicView';
 import VideoView from './VideoView';
@@ -91,6 +92,7 @@ function MobileShell({
   renderToolWorkbench,
 }: MobileShellProps) {
   const mobileSection = getMobileSection(activeNav);
+  const [isMobilePlayerActive, setIsMobilePlayerActive] = useState(false);
   const title = getMobileTitle(mobileSection, mobileToolMode);
   const filteredTools = tools.filter((tool) => {
     const keyword = query.trim().toLocaleLowerCase();
@@ -105,12 +107,17 @@ function MobileShell({
   });
 
   function handleNavChange(key: NavKey) {
+    setIsMobilePlayerActive(false);
     onNavChange(key);
     onMobileToolModeChange('list');
   }
 
+  useEffect(() => {
+    setIsMobilePlayerActive(false);
+  }, [mobileSection]);
+
   return (
-    <main className="mobile-shell">
+    <main className={`mobile-shell ${isMobilePlayerActive ? 'mobile-player-active' : ''}`}>
       <div className="grain" />
       <div className="pattern-veil" aria-hidden="true" />
 
@@ -137,9 +144,9 @@ function MobileShell({
           ) : mobileSection === 'blog' ? (
             <BlogView variant="mobile" />
           ) : mobileSection === 'music' ? (
-            <MusicView variant="mobile" />
+            <MusicView variant="mobile" onMobilePlayerViewChange={setIsMobilePlayerActive} />
           ) : mobileSection === 'video' ? (
-            <VideoView variant="mobile" />
+            <VideoView variant="mobile" onMobilePlayerViewChange={setIsMobilePlayerActive} />
           ) : mobileToolMode === 'detail' ? (
             <section className="mobile-tool-detail">
               <div className="mobile-detail-header">
@@ -190,7 +197,7 @@ function MobileShell({
         </div>
       </section>
 
-      <nav className="mobile-bottom-nav" aria-label="主要导航">
+      <nav className={`mobile-bottom-nav ${isMobilePlayerActive ? 'hidden' : ''}`} aria-label="主要导航">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
           const active = item.key === mobileSection;

@@ -1,4 +1,5 @@
 import {
+  ChevronLeft,
   Expand,
   Film,
   Pause,
@@ -116,14 +117,32 @@ function VideoThumbnail({ video, isSelected }: { video: VideoItem; isSelected: b
 
 type VideoViewProps = {
   variant?: 'desktop' | 'mobile';
+  onMobilePlayerViewChange?: (active: boolean) => void;
 };
 
-function VideoView({ variant = 'desktop' }: VideoViewProps) {
+type MobileMediaView = 'list' | 'player';
+
+function VideoView({ variant = 'desktop', onMobilePlayerViewChange }: VideoViewProps) {
   const [selectedId, setSelectedId] = useState(videos[0]?.id ?? '');
+  const [mobileView, setMobileView] = useState<MobileMediaView>('list');
   const selectedVideo = useMemo(
     () => videos.find((video) => video.id === selectedId) ?? videos[0],
     [selectedId],
   );
+  const isMobile = variant === 'mobile';
+
+  useEffect(() => {
+    if (isMobile) {
+      onMobilePlayerViewChange?.(mobileView === 'player');
+      return;
+    }
+
+    onMobilePlayerViewChange?.(false);
+  }, [isMobile, mobileView, onMobilePlayerViewChange]);
+
+  useEffect(() => {
+    return () => onMobilePlayerViewChange?.(false);
+  }, [onMobilePlayerViewChange]);
 
   if (videos.length === 0 || !selectedVideo) {
     return (
@@ -135,16 +154,36 @@ function VideoView({ variant = 'desktop' }: VideoViewProps) {
     );
   }
 
-  return <VideoPlayer selectedVideo={selectedVideo} variant={variant} onSelect={setSelectedId} />;
+  function handleSelect(id: string) {
+    setSelectedId(id);
+
+    if (isMobile) {
+      setMobileView('player');
+    }
+  }
+
+  return (
+    <VideoPlayer
+      mobileView={mobileView}
+      selectedVideo={selectedVideo}
+      variant={variant}
+      onMobileBack={() => setMobileView('list')}
+      onSelect={handleSelect}
+    />
+  );
 }
 
 function VideoPlayer({
+  mobileView,
   selectedVideo,
   variant,
+  onMobileBack,
   onSelect,
 }: {
+  mobileView?: MobileMediaView;
   selectedVideo: VideoItem;
   variant: 'desktop' | 'mobile';
+  onMobileBack?: () => void;
   onSelect: (id: string) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -176,6 +215,10 @@ function VideoPlayer({
   const selectedDurationLabel = getVideoDurationLabel(selectedVideo);
   const sourceHint = videoSources.map((source, index) => `${getSourceLabel(source, index)}: ${source.src}`).join(' 或 ');
   const shouldHideControls = isPlaying && !isControlsVisible && !isQualityMenuOpen && !isVolumePanelOpen && !hasError;
+  const isMobile = variant === 'mobile';
+  const safeMobileView = mobileView ?? 'player';
+  const showPlayer = !isMobile || safeMobileView === 'player';
+  const showPlaylist = !isMobile || safeMobileView === 'list';
 
   useVideoRitualMotion(motionRootRef, [isPlaying, selectedVideo.id, isQualityMenuOpen, isVolumePanelOpen]);
 
@@ -491,15 +534,27 @@ function VideoPlayer({
   }
 
   return (
-    <div className="video-grid" ref={motionRootRef}>
-      <section className="video-stage" aria-label="视频播放器">
-        <div
-          className={`video-frame ${isPlaying ? 'playing' : 'paused'} ${hasPlaybackStarted ? 'has-playback' : 'poster-preview'} ${shouldHideControls ? 'controls-hidden' : ''}`}
-          ref={frameRef}
-          onFocusCapture={revealControls}
-          onPointerEnter={revealControls}
-          onPointerMove={revealControls}
-        >
+    <div className={`video-grid ${isMobile ? `mobile-media-${safeMobileView}` : ''}`} ref={motionRootRef}>
+      {showPlayer ? (
+        <>
+          {isMobile ? (
+            <div className="mobile-detail-header mobile-media-header">
+              <button type="button" onClick={onMobileBack}>
+                <ChevronLeft size={18} aria-hidden="true" />
+                返回视频列表
+              </button>
+              <span>{selectedDurationLabel || '视频播放'}</span>
+            </div>
+          ) : null}
+
+          <section className="video-stage" aria-label="视频播放器">
+            <div
+              className={`video-frame ${isPlaying ? 'playing' : 'paused'} ${hasPlaybackStarted ? 'has-playback' : 'poster-preview'} ${shouldHideControls ? 'controls-hidden' : ''}`}
+              ref={frameRef}
+              onFocusCapture={revealControls}
+              onPointerEnter={revealControls}
+              onPointerMove={revealControls}
+            >
           <video
             ref={videoRef}
             poster={selectedVideo.poster}
@@ -706,9 +761,12 @@ function VideoPlayer({
             <em>{selectedVideo.description}</em>
           </div>
         ) : null}
-      </section>
+          </section>
+        </>
+      ) : null}
 
-      <aside className="video-playlist" aria-label="视频列表">
+      {showPlaylist ? (
+        <aside className="video-playlist" aria-label="视频列表">
         <div className="section-heading">
           <div>
             <p className="eyebrow">prepared videos</p>
@@ -741,7 +799,8 @@ function VideoPlayer({
             );
           })}
         </div>
-      </aside>
+        </aside>
+      ) : null}
     </div>
   );
 }

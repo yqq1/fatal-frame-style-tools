@@ -15,6 +15,7 @@ function useInterfaceMotion(rootRef: RefObject<HTMLElement>, dependencies: Depen
 
     const context = gsap.context(() => {
       const panelTargets = root.querySelectorAll('[data-motion="panel"]');
+      const itemTargets = root.querySelectorAll('[data-motion="item"]:not(.music-item):not(.video-item)');
       const focusTargets = root.querySelectorAll('[data-motion="focus-line"]');
       const viewfinderTargets = root.querySelectorAll('.viewfinder span');
       const timeline = gsap.timeline({
@@ -29,6 +30,11 @@ function useInterfaceMotion(rootRef: RefObject<HTMLElement>, dependencies: Depen
         .from(
           panelTargets,
           { y: 18, autoAlpha: 0, scale: 0.988, duration: 0.34, stagger: 0.055, clearProps: 'transform,visibility' },
+          '-=0.18',
+        )
+        .from(
+          itemTargets,
+          { y: 10, autoAlpha: 0, duration: 0.28, stagger: 0.035, clearProps: 'transform,visibility' },
           '-=0.18',
         )
         .from(

@@ -1,6 +1,7 @@
 import {
   Captions,
   ChevronDown,
+  ChevronLeft,
   ListMusic,
   Music,
   Pause,
@@ -13,7 +14,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import gsap from 'gsap';
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import type { PlaybackMode } from '../context/MusicPlayerContext';
@@ -49,7 +50,13 @@ function getTrackDuration(track: MusicTrack, duration: number) {
 
 type MusicViewProps = {
   variant?: 'desktop' | 'mobile';
+  onMobilePlayerViewChange?: (active: boolean) => void;
 };
+
+type MobileMediaView = 'list' | 'player';
+type MusicLyricsVariant = 'panel' | 'player';
+type MusicPlayerPanel = 'cover' | 'lyrics';
+type MusicSwipeIntent = 'horizontal' | 'vertical' | null;
 
 const playbackModeLabels: Record<PlaybackMode, string> = {
   sequence: '顺序播放',
@@ -69,6 +76,13 @@ type PanelDragState = {
   startScrollTop: number;
   startY: number;
   started: boolean;
+};
+
+type MusicSwipeState = {
+  intent: MusicSwipeIntent;
+  pointerId: number;
+  startX: number;
+  startY: number;
 };
 
 function usePanelDragScroll() {
@@ -231,7 +245,7 @@ function usePanelDragScroll() {
   };
 }
 
-function MusicView({ variant = 'desktop' }: MusicViewProps) {
+function MusicView({ variant = 'desktop', onMobilePlayerViewChange }: MusicViewProps) {
   const { selectedTrack, tracks } = useMusicPlayer();
 
   if (tracks.length === 0 || !selectedTrack) {
@@ -244,13 +258,19 @@ function MusicView({ variant = 'desktop' }: MusicViewProps) {
     );
   }
 
-  return <MusicPlayerShell variant={variant} />;
+  return <MusicPlayerShell variant={variant} onMobilePlayerViewChange={onMobilePlayerViewChange} />;
 }
 
-function MusicPlayerShell({ variant }: {
+function MusicPlayerShell({ variant, onMobilePlayerViewChange }: {
   variant: 'desktop' | 'mobile';
+  onMobilePlayerViewChange?: (active: boolean) => void;
 }) {
   const motionRootRef = useRef<HTMLDivElement | null>(null);
+  const swipeStateRef = useRef<MusicSwipeState | null>(null);
+  const suppressPanelClickRef = useRef(false);
+  const suppressPanelClickTimerRef = useRef<number | null>(null);
+  const [mobileView, setMobileView] = useState<MobileMediaView>('list');
+  const [activePanel, setActivePanel] = useState<MusicPlayerPanel>('cover');
   const [lyricPulseKey, setLyricPulseKey] = useState(0);
   const runtimeLyrics = useRuntimeMusicLyrics();
   const lyricPip = useLyricPictureInPictureControls();
@@ -284,6 +304,7 @@ function MusicPlayerShell({ variant }: {
   const lyrics = runtimeLyrics[selectedTrack.id] ?? selectedTrack.lyrics ?? [];
   const activeLyricIndex = getActiveLyricIndex(lyrics, currentTime);
   const sourceHint = selectedTrack.src || '/musics';
+  const isMobile = variant === 'mobile';
 
   useMusicMotion(motionRootRef, {
     activeLyricIndex,
@@ -292,73 +313,260 @@ function MusicPlayerShell({ variant }: {
     selectedTrackId: selectedTrack.id,
   });
 
+  useEffect(() => {
+    if (isMobile) {
+      onMobilePlayerViewChange?.(mobileView === 'player');
+      return;
+    }
+
+    onMobilePlayerViewChange?.(false);
+  }, [isMobile, mobileView, onMobilePlayerViewChange]);
+
+  useEffect(() => {
+    return () => onMobilePlayerViewChange?.(false);
+  }, [onMobilePlayerViewChange]);
+
+  useEffect(() => {
+    return () => {
+      if (suppressPanelClickTimerRef.current !== null) {
+        window.clearTimeout(suppressPanelClickTimerRef.current);
+      }
+    };
+  }, []);
+
   function seekToLyric(time: number) {
     seekTo(time);
     setLyricPulseKey((value) => value + 1);
   }
 
+  function handleTrackSelect(id: string, autoplay?: boolean) {
+    if (!isMobile) {
+      selectTrack(id, autoplay);
+      return;
+    }
+
+    selectTrack(id, false);
+    setActivePanel('cover');
+    setMobileView('player');
+  }
+
+  function suppressNextPanelClick() {
+    suppressPanelClickRef.current = true;
+
+    if (suppressPanelClickTimerRef.current !== null) {
+      window.clearTimeout(suppressPanelClickTimerRef.current);
+    }
+
+    suppressPanelClickTimerRef.current = window.setTimeout(() => {
+      suppressPanelClickRef.current = false;
+      suppressPanelClickTimerRef.current = null;
+    }, 180);
+  }
+
+  function handlePanelClickCapture(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!suppressPanelClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleSwipePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!isMobile || (event.pointerType === 'mouse' && event.button !== 0)) {
+      return;
+    }
+
+    swipeStateRef.current = {
+      intent: null,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+  }
+
+  function handleSwipePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const swipeState = swipeStateRef.current;
+
+    if (!swipeState || swipeState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - swipeState.startX;
+    const deltaY = event.clientY - swipeState.startY;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (!swipeState.intent) {
+      if (absX < 8 && absY < 8) {
+        return;
+      }
+
+      if (absX > absY * 1.25) {
+        swipeState.intent = 'horizontal';
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }
+      } else if (absY > absX) {
+        swipeState.intent = 'vertical';
+        swipeStateRef.current = null;
+        return;
+      }
+    }
+
+    if (swipeState.intent === 'horizontal') {
+      event.preventDefault();
+    }
+  }
+
+  function finishSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const swipeState = swipeStateRef.current;
+
+    if (!swipeState || swipeState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const deltaX = event.clientX - swipeState.startX;
+    swipeStateRef.current = null;
+
+    if (swipeState.intent !== 'horizontal' || Math.abs(deltaX) < 40) {
+      return;
+    }
+
+    setActivePanel(deltaX < 0 ? 'lyrics' : 'cover');
+    suppressNextPanelClick();
+  }
+
   return (
-    <div className={`music-theater ${variant === 'mobile' ? 'mobile-music-theater' : ''}`} ref={motionRootRef}>
-      <MusicPlaylist selectedTrack={selectedTrack} tracks={tracks} onSelect={selectTrack} />
+    <div className={`music-theater ${isMobile ? `mobile-music-theater mobile-media-${mobileView}` : ''}`} ref={motionRootRef}>
+      {(!isMobile || mobileView === 'list') ? (
+        <MusicPlaylist selectedTrack={selectedTrack} tracks={tracks} onSelect={handleTrackSelect} />
+      ) : null}
 
-      <section className="music-stage music-theater-panel" data-music-motion="panel" aria-label="音乐播放器">
-        <div className={`music-instrument ${isPlaying ? 'playing' : 'paused'}`}>
-          <MusicVisual isPlaying={isPlaying} />
-          <div className="music-copy">
-            <p className="eyebrow">lyric theater</p>
-            <h2>{selectedTrack.title}</h2>
-            <span>{selectedTrack.artist}</span>
-            <em>
-              {selectedIndex + 1} / {tracks.length} · {getTrackDuration(selectedTrack, duration)}
-            </em>
-          </div>
-
-          {hasError ? (
-            <div className="music-error" role="status">
-              <strong>音乐文件未找到</strong>
-              <span>请将文件放到 {sourceHint}，或修改 src/data/music.ts 中的 src。</span>
+      {(!isMobile || mobileView === 'player') ? (
+        <>
+          {isMobile ? (
+            <div className="mobile-detail-header mobile-media-header">
+              <button type="button" onClick={() => setMobileView('list')}>
+                <ChevronLeft size={18} aria-hidden="true" />
+                返回音乐列表
+              </button>
+              <span>{selectedIndex + 1} / {tracks.length}</span>
             </div>
           ) : null}
 
-          <MusicControls
-            canMove={canMove}
-            currentTime={currentTime}
-            duration={duration}
-            isMuted={isMuted}
-            isPlaying={isPlaying}
-            playbackMode={playbackMode}
-            progress={progress}
-            trackDuration={getTrackDuration(selectedTrack, duration)}
-            volume={volume}
-            volumeProgress={volumeProgress}
-            lyricPipControl={
-              <button
-                className={`music-control music-lyric-pip-control ${lyricPip.isOpen ? 'active' : ''} ${lyricPip.isAvailable ? '' : 'unavailable'}`}
-                type="button"
-                aria-label={lyricPip.isAvailable ? (lyricPip.isOpen ? '关闭字幕小窗' : '打开字幕小窗') : lyricPip.unavailableReason}
-                aria-pressed={lyricPip.isOpen}
-                disabled={!lyricPip.isAvailable}
-                title={lyricPip.isAvailable ? undefined : lyricPip.unavailableReason}
-                onClick={() => {
-                  void lyricPip.toggle();
-                }}
-              >
-                <Captions size={18} aria-hidden="true" />
-                <span>字幕小窗</span>
-              </button>
-            }
-            onMute={toggleMute}
-            onPlaybackModeChange={setPlaybackMode}
-            onPlayToggle={togglePlay}
-            onSeek={seekTo}
-            onSkipBack={() => selectByDirection(-1)}
-            onSkipForward={() => selectByDirection(1)}
-            onVolumeChange={setPlayerVolume}
-          />
-        </div>
-      </section>
+          <section className="music-stage music-theater-panel" data-music-motion="panel" aria-label="音乐播放器">
+            <div className={`music-instrument ${isPlaying ? 'playing' : 'paused'}`}>
+              {!isMobile ? <MusicVisual isPlaying={isPlaying} /> : null}
+              <div className="music-copy">
+                <p className="eyebrow">lyric theater</p>
+                <h2>{selectedTrack.title}</h2>
+                <span>{selectedTrack.artist}</span>
+                <em>
+                  {selectedIndex + 1} / {tracks.length} · {getTrackDuration(selectedTrack, duration)}
+                </em>
+              </div>
 
-      <MusicLyrics activeIndex={activeLyricIndex} currentTime={currentTime} lyrics={lyrics} onSeek={seekToLyric} />
+              {hasError ? (
+                <div className="music-error" role="status">
+                  <strong>音乐文件未找到</strong>
+                  <span>请将文件放到 {sourceHint}，或修改 src/data/music.ts 中的 src。</span>
+                </div>
+              ) : null}
+
+              {isMobile ? (
+                <>
+                  <div
+                    className={`music-swipe-area active-${activePanel}`}
+                    aria-label="播放器封面和歌词"
+                    onClickCapture={handlePanelClickCapture}
+                    onPointerCancel={finishSwipe}
+                    onPointerDown={handleSwipePointerDown}
+                    onPointerMove={handleSwipePointerMove}
+                    onPointerUp={finishSwipe}
+                  >
+                    <div className={`music-swipe-track active-${activePanel}`}>
+                      <section className="music-swipe-panel music-cover-panel" aria-label="唱片视觉">
+                        <MusicVisual isPlaying={isPlaying} />
+                      </section>
+                      <section className="music-swipe-panel music-lyrics-panel" aria-label="同步歌词">
+                        <MusicLyrics
+                          activeIndex={activeLyricIndex}
+                          currentTime={currentTime}
+                          lyrics={lyrics}
+                          variant="player"
+                          onSeek={seekToLyric}
+                        />
+                      </section>
+                    </div>
+                  </div>
+
+                  <div className="music-panel-dots" aria-label="播放器页面">
+                    <button
+                      className={activePanel === 'cover' ? 'active' : ''}
+                      type="button"
+                      aria-label="显示唱片视觉"
+                      aria-pressed={activePanel === 'cover'}
+                      onClick={() => setActivePanel('cover')}
+                    />
+                    <button
+                      className={activePanel === 'lyrics' ? 'active' : ''}
+                      type="button"
+                      aria-label="显示歌词"
+                      aria-pressed={activePanel === 'lyrics'}
+                      onClick={() => setActivePanel('lyrics')}
+                    />
+                  </div>
+                </>
+              ) : null}
+
+              <MusicControls
+                canMove={canMove}
+                currentTime={currentTime}
+                duration={duration}
+                isMuted={isMuted}
+                isPlaying={isPlaying}
+                playbackMode={playbackMode}
+                progress={progress}
+                trackDuration={getTrackDuration(selectedTrack, duration)}
+                volume={volume}
+                volumeProgress={volumeProgress}
+                lyricPipControl={
+                  <button
+                    className={`music-control music-lyric-pip-control ${lyricPip.isOpen ? 'active' : ''} ${lyricPip.isAvailable ? '' : 'unavailable'}`}
+                    type="button"
+                    aria-label={lyricPip.isAvailable ? (lyricPip.isOpen ? '关闭字幕小窗' : '打开字幕小窗') : lyricPip.unavailableReason}
+                    aria-pressed={lyricPip.isOpen}
+                    disabled={!lyricPip.isAvailable}
+                    title={lyricPip.isAvailable ? undefined : lyricPip.unavailableReason}
+                    onClick={() => {
+                      void lyricPip.toggle();
+                    }}
+                  >
+                    <Captions size={18} aria-hidden="true" />
+                    <span>字幕小窗</span>
+                  </button>
+                }
+                onMute={toggleMute}
+                onPlaybackModeChange={setPlaybackMode}
+                onPlayToggle={togglePlay}
+                onSeek={seekTo}
+                onSkipBack={() => selectByDirection(-1)}
+                onSkipForward={() => selectByDirection(1)}
+                onVolumeChange={setPlayerVolume}
+              />
+            </div>
+          </section>
+
+          {!isMobile ? (
+            <MusicLyrics activeIndex={activeLyricIndex} currentTime={currentTime} lyrics={lyrics} onSeek={seekToLyric} />
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -668,15 +876,44 @@ function MusicControls({
   );
 }
 
+function getPlayerLyricLineClass(index: number, activeIndex: number) {
+  const focusIndex = activeIndex >= 0 ? activeIndex : 0;
+  const distance = index - focusIndex;
+
+  if (distance === 0) {
+    return 'player-current';
+  }
+
+  if (distance === -1) {
+    return 'player-prev';
+  }
+
+  if (distance === 1) {
+    return 'player-next';
+  }
+
+  if (distance === -2) {
+    return 'player-edge player-prev-2';
+  }
+
+  if (distance === 2) {
+    return 'player-edge player-next-2';
+  }
+
+  return 'player-hidden';
+}
+
 function MusicLyrics({
   activeIndex,
   currentTime,
   lyrics,
+  variant = 'panel',
   onSeek,
 }: {
   activeIndex: number;
   currentTime: number;
   lyrics: MusicLyricLine[];
+  variant?: MusicLyricsVariant;
   onSeek: (time: number) => void;
 }) {
   const activeLineRef = useRef<HTMLButtonElement | null>(null);
@@ -696,27 +933,30 @@ function MusicLyrics({
 
   return (
     <section
-      className={`music-lyrics music-theater-panel ${isDragging ? 'dragging' : ''} ${isAutoFollowPaused ? 'manual' : ''}`}
-      data-music-motion="panel"
-      aria-label="同步字幕"
+      className={`music-lyrics ${variant === 'player' ? 'in-player' : 'music-theater-panel'} ${isDragging ? 'dragging' : ''} ${isAutoFollowPaused ? 'manual' : ''}`}
+      data-music-motion={variant === 'panel' ? 'panel' : undefined}
+      aria-label={variant === 'player' ? '播放器歌词' : '同步字幕'}
     >
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">synced lyrics</p>
-          <h2>同步字幕</h2>
+      {variant === 'panel' ? (
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">synced lyrics</p>
+            <h2>同步字幕</h2>
+          </div>
+          <span>{lyrics.length} 行</span>
         </div>
-        <span>{lyrics.length} 行</span>
-      </div>
+      ) : null}
 
       {lyrics.length ? (
         <>
         <div className="music-lyric-scroll" ref={lyricScrollRef} {...lyricDragHandlers}>
           {lyrics.map((line, index) => {
             const isActive = index === activeIndex;
+            const playerLineClass = variant === 'player' ? getPlayerLyricLineClass(index, activeIndex) : '';
 
             return (
               <button
-                className={`music-lyric-line ${isActive ? 'active' : ''}`}
+                className={`music-lyric-line ${isActive ? 'active' : ''} ${playerLineClass}`}
                 key={`${line.time}-${index}`}
                 ref={isActive ? activeLineRef : undefined}
                 type="button"
