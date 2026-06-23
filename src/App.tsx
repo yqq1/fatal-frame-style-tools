@@ -3,12 +3,15 @@ import {
   AudioWaveform,
   BookOpenText,
   Camera,
+  ChevronDown,
   ChevronRight,
   Film,
   FileText,
   HardDrive,
   Image,
+  LibraryBig,
   Layers3,
+  ListChecks,
   Music,
   RefreshCw,
   Search,
@@ -21,21 +24,25 @@ import {
 import gsap from 'gsap';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BlogView from './components/BlogView';
+import AdminMediaPanel from './components/AdminMediaPanel';
 import DemucsWorkbench from './components/DemucsWorkbench';
 import LyricTimingWorkbench from './components/LyricTimingWorkbench';
 import MobileShell from './components/MobileShell';
+import MuseumView from './components/MuseumView';
 import MiniMusicPlayer from './components/MiniMusicPlayer';
 import MusicView from './components/MusicView';
+import QuizBankWorkbench from './components/QuizBankWorkbench';
 import VideoView from './components/VideoView';
 import WhisperWorkbench from './components/WhisperWorkbench';
 import { SpotlightCard } from './components/ui/SpotlightCard';
 import { LyricPictureInPictureProvider } from './context/LyricPictureInPictureContext';
 import { MusicPlayerProvider } from './context/MusicPlayerContext';
 import { blogPosts } from './lib/blogPosts';
-import { musicTracks } from './data/music';
-import { videos } from './data/videos';
 import type { MobileToolCategory, MobileToolMode, NavKey, ToolCategory, ToolDefinition } from './types/toolbox';
 import useInterfaceMotion from './hooks/useInterfaceMotion';
+import useRuntimeMediaLibrary from './hooks/useRuntimeMediaLibrary';
+import type { RuntimeMediaLibraryState } from './hooks/useRuntimeMediaLibrary';
+import './styles/museum.css';
 import './styles/video.css';
 import './App.css';
 
@@ -95,6 +102,14 @@ const tools: ToolDefinition[] = [
     icon: 'camera',
   },
   {
+    id: 'quiz-bank',
+    name: '题库管理',
+    category: 'text',
+    description: '结构化维护个人主页刷题 CSV 题库和索引文件。',
+    status: 'ready',
+    icon: 'quiz',
+  },
+  {
     id: 'text-cleaner',
     name: '文本清洗',
     category: 'text',
@@ -122,6 +137,7 @@ const navItems: Array<{
   { key: 'image', label: '图片工具', icon: Image },
   { key: 'text', label: '文本工具', icon: FileText },
   { key: 'blog', label: '学习笔记', icon: BookOpenText },
+  { key: 'museum', label: '资料馆', icon: LibraryBig },
   { key: 'music', label: '音乐', icon: Music },
   { key: 'video', label: '视频', icon: Film },
   { key: 'settings', label: '设置', icon: Settings },
@@ -132,12 +148,15 @@ const toolIcons: Record<ToolDefinition['icon'], typeof AudioWaveform> = {
   audio: AudioWaveform,
   camera: Camera,
   image: Image,
+  quiz: ListChecks,
   text: BookOpenText,
   wand: Wand2,
 };
 
+const toolCategoryKeys: ToolCategory[] = ['audio', 'image', 'text'];
+
 function isToolCategory(key: NavKey): key is ToolCategory {
-  return key === 'audio' || key === 'image' || key === 'text';
+  return toolCategoryKeys.includes(key as ToolCategory);
 }
 
 function App() {
@@ -147,6 +166,7 @@ function App() {
   const [mobileToolMode, setMobileToolMode] = useState<MobileToolMode>('list');
   const [whisperSeedPath, setWhisperSeedPath] = useState('');
   const [query, setQuery] = useState('');
+  const mediaLibrary = useRuntimeMediaLibrary();
   const shellRef = useRef<HTMLElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
 
@@ -159,6 +179,7 @@ function App() {
         activeNav === 'all' ||
         activeNav === 'settings' ||
         activeNav === 'blog' ||
+        activeNav === 'museum' ||
         activeNav === 'video' ||
         tool.category === activeNav;
       const matchesQuery =
@@ -172,30 +193,55 @@ function App() {
 
   const showSettings = activeNav === 'settings';
   const showBlog = activeNav === 'blog';
+  const showMuseum = activeNav === 'museum';
   const showMusic = activeNav === 'music';
   const showVideo = activeNav === 'video';
-  const showTools = !showSettings && !showBlog && !showMusic && !showVideo;
-  const topbarTitle = showMusic ? '音乐播放器' : showVideo ? '视频播放器' : showBlog ? '学习笔记' : showSettings ? '设置' : '集成工具箱';
+  const showTools = !showSettings && !showBlog && !showMuseum && !showMusic && !showVideo;
+  const topbarTitle = showMuseum ? '零系列资料馆' : showMusic ? '音乐播放器' : showVideo ? '视频播放器' : showBlog ? '学习笔记' : showSettings ? '设置' : '集成工具箱';
   const topbarEyebrow = showVideo
     ? 'prepared video shelf'
     : showMusic
       ? 'prepared music shelf'
-      : showBlog
-        ? 'daily markdown journal'
-        : showSettings
-          ? 'configuration'
-          : 'night archive console';
+      : showMuseum
+        ? 'fatal frame archive'
+        : showBlog
+          ? 'daily markdown journal'
+          : showSettings
+            ? 'configuration'
+            : 'night archive console';
   const statusText = showVideo
-    ? `${videos.length} 个视频`
+    ? `${mediaLibrary.videos.length} 个视频`
     : showMusic
-      ? `${musicTracks.length} 首音乐`
-      : showBlog
-        ? `${blogPosts.length} 篇笔记`
-        : showSettings
-          ? '偏好配置'
-          : `${tools.length} 个入口`;
-  const toolHeading = isToolCategory(activeNav) ? categoryLabels[activeNav] : '全部工具';
+      ? `${mediaLibrary.musicTracks.length} 首音乐`
+      : showMuseum
+        ? '作品与游玩记录'
+        : showBlog
+          ? `${blogPosts.length} 篇笔记`
+          : showSettings
+            ? '偏好配置'
+            : `${tools.length} 个入口`;
   useInterfaceMotion(workspaceRef, [activeNav]);
+
+  function selectFirstToolInCategory(category: ToolCategory) {
+    const nextTool = tools.find((tool) => tool.category === category);
+    if (nextTool) {
+      setSelectedToolId(nextTool.id);
+    }
+  }
+
+  function handleNavChange(key: NavKey) {
+    setActiveNav(key);
+    if (isToolCategory(key)) {
+      selectFirstToolInCategory(key);
+    }
+  }
+
+  function handleMobileToolCategoryChange(category: MobileToolCategory) {
+    setMobileToolCategory(category);
+    if (category !== 'all') {
+      selectFirstToolInCategory(category);
+    }
+  }
 
   function useDemucsOutputInWhisper(path: string) {
     setWhisperSeedPath(path);
@@ -206,7 +252,7 @@ function App() {
   }
 
   return (
-    <MusicPlayerProvider>
+    <MusicPlayerProvider tracks={mediaLibrary.musicTracks}>
     <LyricPictureInPictureProvider>
     <main className="shell desktop-shell" ref={shellRef}>
       <div className="grain" />
@@ -231,7 +277,7 @@ function App() {
                 className={`nav-item ${activeNav === item.key ? 'active' : ''}`}
                 key={item.key}
                 aria-pressed={activeNav === item.key}
-                onClick={() => setActiveNav(item.key)}
+                onClick={() => handleNavChange(item.key)}
               >
                 <Icon size={18} aria-hidden="true" />
                 <span>{item.label}</span>
@@ -240,6 +286,7 @@ function App() {
             );
           })}
         </nav>
+
       </aside>
 
       <section className="workspace" ref={workspaceRef}>
@@ -260,46 +307,32 @@ function App() {
             </label>
           ) : (
             <div className="topbar-quiet">
-              {showMusic ? '本地静态音乐' : showVideo ? '本地静态视频' : showBlog ? 'Markdown 只读笔记' : '基础配置占位'}
+              {showMuseum ? '本地资料与进度' : showMusic ? '本地静态音乐' : showVideo ? '本地静态视频' : showBlog ? 'Markdown 只读笔记' : '基础配置占位'}
             </div>
           )}
-          <div className="status-pill">
-            <Sparkles size={16} aria-hidden="true" />
-            <span>{statusText}</span>
-          </div>
+          {showTools ? (
+            <TopbarToolSwitcher tools={filteredTools} selectedTool={selectedTool} onSelect={setSelectedToolId} />
+          ) : (
+            <div className="status-pill">
+              <Sparkles size={16} aria-hidden="true" />
+              <span>{statusText}</span>
+            </div>
+          )}
         </header>
 
         <div className="page-surface" data-motion="panel">
           {showSettings ? (
-            <SettingsPanel />
+            <SettingsPanel mediaLibrary={mediaLibrary} />
           ) : showBlog ? (
             <BlogView />
+          ) : showMuseum ? (
+            <MuseumView onOpenMusic={() => setActiveNav('music')} onOpenVideo={() => setActiveNav('video')} />
           ) : showMusic ? (
             <MusicView />
           ) : showVideo ? (
-            <VideoView />
+            <VideoView videos={mediaLibrary.videos} />
           ) : (
-            <div className={`home-dashboard ${['audio-harvester', 'lyric-timing', 'demucs-vocals'].includes(selectedTool.id) ? 'home-dashboard-tool-active' : ''}`}>
-              <section className="tool-list" aria-label="工具列表">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">tool shelf</p>
-                    <h2>{toolHeading}</h2>
-                  </div>
-                  <span>{filteredTools.length} 项</span>
-                </div>
-
-                <div className="cards">
-                  {filteredTools.map((tool) => (
-                    <ToolCard
-                      key={tool.id}
-                      selected={tool.id === selectedTool.id}
-                      tool={tool}
-                      onSelect={() => setSelectedToolId(tool.id)}
-                    />
-                  ))}
-                </div>
-              </section>
+            <div className={`home-dashboard ${['audio-harvester', 'lyric-timing', 'demucs-vocals', 'quiz-bank'].includes(selectedTool.id) ? 'home-dashboard-tool-active' : ''}`}>
               <ToolWorkbench tool={selectedTool} onUseWhisperInput={useDemucsOutputInWhisper} whisperSeedPath={whisperSeedPath} />
             </div>
           )}
@@ -314,15 +347,16 @@ function App() {
       query={query}
       selectedTool={selectedTool}
       tools={tools}
-      onMobileToolCategoryChange={setMobileToolCategory}
+      onMobileToolCategoryChange={handleMobileToolCategoryChange}
       onMobileToolModeChange={setMobileToolMode}
-      onNavChange={setActiveNav}
+      onNavChange={handleNavChange}
       onQueryChange={setQuery}
       onToolSelect={setSelectedToolId}
       renderToolCard={(tool, selected, onSelect) => (
         <ToolCard key={tool.id} selected={selected} tool={tool} onSelect={onSelect} />
       )}
       renderToolWorkbench={(tool) => <ToolWorkbench tool={tool} onUseWhisperInput={useDemucsOutputInWhisper} whisperSeedPath={whisperSeedPath} />}
+      mediaLibrary={mediaLibrary}
     />
     <MiniMusicPlayer
       onOpenMusic={() => {
@@ -366,6 +400,114 @@ function ToolCard({
   );
 }
 
+function TopbarToolSwitcher({
+  onSelect,
+  selectedTool,
+  tools,
+}: {
+  onSelect: (toolId: string) => void;
+  selectedTool: ToolDefinition;
+  tools: ToolDefinition[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const SelectedIcon = toolIcons[selectedTool.icon];
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: Event) {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
+      }
+      setIsOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  function selectTool(toolId: string) {
+    onSelect(toolId);
+    setIsOpen(false);
+  }
+
+  return (
+    <div className={`topbar-tool-switcher ${isOpen ? 'open' : ''}`}>
+      <button
+        className="topbar-tool-trigger"
+        ref={buttonRef}
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        onClick={() => setIsOpen((value) => !value)}
+      >
+        <span className="topbar-tool-icon">
+          <SelectedIcon size={17} aria-hidden="true" />
+        </span>
+        <span className="topbar-tool-copy">
+          <strong>{selectedTool.name}</strong>
+          <span>{categoryLabels[selectedTool.category]} · {tools.length} 项</span>
+        </span>
+        <ChevronDown className="topbar-tool-chevron" size={16} aria-hidden="true" />
+      </button>
+
+      {isOpen ? (
+        <div className="topbar-tool-menu" ref={menuRef} role="menu" aria-label="选择工具">
+          {tools.length > 0 ? (
+            tools.map((tool) => {
+              const Icon = toolIcons[tool.icon];
+              const selected = tool.id === selectedTool.id;
+              return (
+                <button
+                  className={`topbar-tool-option ${selected ? 'active' : ''}`}
+                  key={tool.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={selected}
+                  onClick={() => selectTool(tool.id)}
+                >
+                  <span className="topbar-tool-icon">
+                    <Icon size={16} aria-hidden="true" />
+                  </span>
+                  <span className="topbar-tool-option-copy">
+                    <strong>{tool.name}</strong>
+                    <span>{tool.description}</span>
+                  </span>
+                  <span className="topbar-tool-option-meta">{categoryLabels[tool.category]}</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="topbar-tool-empty" role="status">无匹配工具</div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolWorkbench({
   onUseWhisperInput,
   tool,
@@ -387,6 +529,10 @@ function ToolWorkbench({
 
   if (tool.id === 'demucs-vocals') {
     return <DemucsWorkbench onUseWhisperInput={onUseWhisperInput} />;
+  }
+
+  if (tool.id === 'quiz-bank') {
+    return <QuizBankWorkbench />;
   }
 
   return (
@@ -657,7 +803,7 @@ function StorageCleanupPanel() {
   );
 }
 
-function SettingsPanel() {
+function SettingsPanel({ mediaLibrary }: { mediaLibrary: RuntimeMediaLibraryState }) {
   return (
     <section className="settings-panel" aria-label="设置">
       <div className="section-heading">
@@ -680,6 +826,11 @@ function SettingsPanel() {
           <span>当前使用暗红旧宅与红蝶主题。</span>
         </div>
       </div>
+      <AdminMediaPanel
+        runtimeAudioTracks={mediaLibrary.runtimeAudioTracks}
+        runtimeVideos={mediaLibrary.runtimeVideos}
+        onLibraryChange={mediaLibrary.refresh}
+      />
       <StorageCleanupPanel />
     </section>
   );

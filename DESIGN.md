@@ -203,6 +203,18 @@ background: oklch(16% 0.014 30 / 0.78);
 color: oklch(69% 0.03 50);
 ```
 
+### 多行文本框 / 选择控件
+
+- 所有 `textarea` 默认禁止显示原生滚动条和右下角 resize 控件，用户通过鼠标滚轮、触控板或触摸滑动滚动内容。
+- `textarea` 默认使用 `resize: none; scrollbar-width: none;`，并隐藏 `::-webkit-scrollbar`。
+- 除非用户明确要求可拖拽调整高度，否则禁止使用 `resize: vertical`。
+- 下拉选择控件不得使用系统原生白色样式，优先复用项目主题化选择组件。
+
+```css
+resize: none;
+scrollbar-width: none;
+```
+
 ### 标签 / 状态 Pill
 
 ```css

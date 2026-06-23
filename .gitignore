@@ -13,6 +13,7 @@ data/whisper-uploads/
 data/whisper-outputs/
 data/demucs-uploads/
 data/demucs-outputs/
+data/quiz-bank-settings.json
 
 # Keep editable app data explicit; add files back with -f only if needed.
 data/**/*.mp3

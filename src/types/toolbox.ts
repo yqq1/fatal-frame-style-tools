@@ -8,10 +8,10 @@ export type ToolDefinition = {
   category: ToolCategory;
   description: string;
   status: ToolStatus;
-  icon: 'audio' | 'image' | 'text' | 'camera' | 'wand' | 'archive';
+  icon: 'audio' | 'image' | 'text' | 'camera' | 'wand' | 'archive' | 'quiz';
 };
 
-export type NavKey = 'all' | ToolCategory | 'blog' | 'video' | 'music' | 'settings';
+export type NavKey = 'all' | ToolCategory | 'blog' | 'museum' | 'video' | 'music' | 'settings';
 
 export type MobileToolCategory = 'all' | ToolCategory;
 

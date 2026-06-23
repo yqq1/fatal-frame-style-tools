@@ -546,6 +546,141 @@
   margin-top: 4px;
 }
 
+.video-buffer-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 2px;
+}
+
+.video-buffer-modes {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid oklch(48% 0.06 42 / 0.52);
+  border-radius: 7px;
+  background: oklch(8% 0.012 28 / 0.76);
+}
+
+.video-buffer-modes button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  color: oklch(66% 0.028 52);
+  background: transparent;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.video-buffer-modes button + button {
+  border-left: 1px solid oklch(48% 0.06 42 / 0.4);
+}
+
+.video-buffer-modes button:hover,
+.video-buffer-modes button:focus-visible,
+.video-buffer-modes button.active {
+  color: oklch(96% 0.018 56);
+  background:
+    radial-gradient(circle at 50% 0%, oklch(55% 0.15 27 / 0.22), transparent 84%),
+    oklch(22% 0.036 29 / 0.92);
+  outline: 0;
+}
+
+.video-buffer-status {
+  min-width: 0;
+  overflow: hidden;
+  color: oklch(65% 0.025 54);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-buffer-panel.is-prebuffering .video-buffer-status,
+.video-buffer-panel.is-rebuffering .video-buffer-status,
+.video-buffer-panel.is-caching .video-buffer-status {
+  color: oklch(84% 0.085 42);
+}
+
+.video-buffer-panel.is-cached .video-buffer-status {
+  color: oklch(78% 0.07 86);
+}
+
+.video-buffer-panel.is-failed .video-buffer-status {
+  color: oklch(86% 0.11 38);
+}
+
+.video-buffer-action {
+  display: inline-flex;
+  min-width: 28px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid oklch(54% 0.1 28 / 0.46);
+  border-radius: 7px;
+  color: oklch(87% 0.035 42);
+  background: oklch(18% 0.028 29 / 0.82);
+  font-size: 0.66rem;
+  font-weight: 800;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.video-buffer-action:hover,
+.video-buffer-action:focus-visible {
+  border-color: oklch(66% 0.15 28 / 0.72);
+  color: oklch(96% 0.018 56);
+  background: oklch(26% 0.05 28 / 0.92);
+  outline: 0;
+}
+
+.video-buffer-lower-quality {
+  min-width: auto;
+}
+
+@media (max-width: 760px) {
+  .video-buffer-panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 7px;
+    padding-inline: 1px;
+  }
+
+  .video-buffer-modes {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .video-buffer-modes button {
+    min-height: 26px;
+    padding-inline: 7px;
+    font-size: 0.64rem;
+  }
+
+  .video-buffer-status {
+    font-size: 0.66rem;
+  }
+
+  .video-buffer-action {
+    min-width: 26px;
+    min-height: 26px;
+  }
+}
+
 .video-control-row button,
 .quality-control {
   position: relative;
@@ -1208,6 +1343,24 @@
     transform 180ms ease;
 }
 
+.video-thumb-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: oklch(72% 0.075 38);
+  background:
+    linear-gradient(90deg, oklch(18% 0.03 28 / 0.38) 1px, transparent 1px),
+    linear-gradient(180deg, oklch(18% 0.03 28 / 0.32) 1px, transparent 1px),
+    radial-gradient(circle at 52% 50%, oklch(38% 0.12 26 / 0.24), transparent 58%),
+    oklch(8% 0.012 28);
+  background-size: 18px 18px, 18px 18px, 100% 100%, 100% 100%;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
 .video-thumb video {
   position: absolute;
   inset: 0;
@@ -1244,6 +1397,8 @@
 
 .video-item:hover .video-thumb img,
 .video-item.selected .video-thumb img,
+.video-item:hover .video-thumb-placeholder,
+.video-item.selected .video-thumb-placeholder,
 .video-item:hover .video-thumb video,
 .video-item.selected .video-thumb video {
   filter: saturate(0.96) brightness(0.94) contrast(1.03);

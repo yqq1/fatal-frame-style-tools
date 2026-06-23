@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { musicTracks } from '../data/music';
+import { musicTracks as defaultMusicTracks } from '../data/music';
 import type { MusicTrack } from '../data/music';
 
 export type PlaybackMode = 'sequence' | 'repeat-one' | 'shuffle';
@@ -68,10 +68,8 @@ function loadMusicPlayerPreferences() {
   }
 }
 
-function buildShuffleQueue(currentIndex: number) {
-  const queue = musicTracks
-    .map((_, index) => index)
-    .filter((index) => index !== currentIndex);
+function buildShuffleQueue(currentId: string, trackIds: string[]) {
+  const queue = trackIds.filter((id) => id !== currentId);
 
   for (let index = queue.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.floor(Math.random() * (index + 1));
@@ -81,15 +79,15 @@ function buildShuffleQueue(currentIndex: number) {
   return queue;
 }
 
-export function MusicPlayerProvider({ children }: { children: ReactNode }) {
+export function MusicPlayerProvider({ children, tracks = defaultMusicTracks }: { children: ReactNode; tracks?: MusicTrack[] }) {
   const storedPreferences = loadMusicPlayerPreferences();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const previousPlaybackModeRef = useRef<PlaybackMode>('sequence');
   const shouldAutoplayRef = useRef(false);
-  // Shuffle uses a precomputed queue so one round doesn't repeat tracks.
-  const shuffleHistoryRef = useRef<number[]>([]);
-  const shuffleQueueRef = useRef<number[]>([]);
-  const [selectedId, setSelectedId] = useState(musicTracks[0]?.id ?? '');
+  // Shuffle stores track ids so library edits cannot invalidate queued indices.
+  const shuffleHistoryRef = useRef<string[]>([]);
+  const shuffleQueueRef = useRef<string[]>([]);
+  const [selectedId, setSelectedId] = useState(tracks[0]?.id ?? '');
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -99,24 +97,38 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [playbackMode, setPlaybackMode] = useState<PlaybackMode>(storedPreferences?.playbackMode ?? 'sequence');
 
   const selectedTrack = useMemo(
-    () => musicTracks.find((track) => track.id === selectedId) ?? musicTracks[0],
-    [selectedId],
+    () => tracks.find((track) => track.id === selectedId) ?? tracks[0],
+    [selectedId, tracks],
   );
-  const selectedIndex = selectedTrack ? musicTracks.findIndex((track) => track.id === selectedTrack.id) : -1;
+  const trackIds = useMemo(() => tracks.map((track) => track.id), [tracks]);
+  const trackSignature = useMemo(() => trackIds.join('\u0000'), [trackIds]);
+  const previousTrackSignatureRef = useRef(trackSignature);
+  const selectedIndex = selectedTrack ? tracks.findIndex((track) => track.id === selectedTrack.id) : -1;
   const safeSelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-  const canMove = musicTracks.length > 1;
+  const canMove = tracks.length > 1;
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumeProgress = isMuted ? 0 : volume * 100;
 
-  const resetShuffleState = useCallback((currentIndex: number) => {
+  const resetShuffleState = useCallback((currentId: string) => {
     shuffleHistoryRef.current = [];
-    shuffleQueueRef.current = buildShuffleQueue(currentIndex);
-  }, []);
+    shuffleQueueRef.current = buildShuffleQueue(currentId, trackIds);
+  }, [trackIds]);
 
   const clearShuffleState = useCallback(() => {
     shuffleHistoryRef.current = [];
     shuffleQueueRef.current = [];
   }, []);
+
+  useEffect(() => {
+    if (tracks.length === 0) {
+      setSelectedId('');
+      return;
+    }
+
+    if (!tracks.some((track) => track.id === selectedId)) {
+      setSelectedId(tracks[0].id);
+    }
+  }, [selectedId, tracks]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -219,10 +231,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const nextIndex = musicTracks.findIndex((track) => track.id === id);
-      resetShuffleState(nextIndex >= 0 ? nextIndex : safeSelectedIndex);
+      resetShuffleState(id);
     },
-    [isPlaying, playbackMode, resetShuffleState, safeSelectedIndex],
+    [isPlaying, playbackMode, resetShuffleState],
   );
 
   const selectTrack = useCallback(
@@ -240,59 +251,79 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     previousPlaybackModeRef.current = playbackMode;
 
     if (playbackMode === 'shuffle') {
-      resetShuffleState(safeSelectedIndex);
+      resetShuffleState(selectedTrack?.id ?? '');
       return;
     }
 
     clearShuffleState();
-  }, [clearShuffleState, playbackMode, resetShuffleState, safeSelectedIndex]);
+  }, [clearShuffleState, playbackMode, resetShuffleState, selectedTrack?.id]);
 
-  const getNextIndex = useCallback(
+  useEffect(() => {
+    if (previousTrackSignatureRef.current === trackSignature) {
+      return;
+    }
+
+    previousTrackSignatureRef.current = trackSignature;
+
+    if (playbackMode === 'shuffle') {
+      resetShuffleState(selectedTrack?.id ?? '');
+    }
+  }, [playbackMode, resetShuffleState, selectedTrack?.id, trackSignature]);
+
+  const getNextTrackId = useCallback(
     (direction: 1 | -1) => {
+      const selectedTrackId = selectedTrack?.id ?? '';
+
       if (!canMove) {
-        return safeSelectedIndex;
+        return selectedTrackId;
       }
 
       if (playbackMode === 'shuffle') {
         if (direction === -1 && shuffleHistoryRef.current.length === 0) {
-          return safeSelectedIndex;
+          return selectedTrackId;
         }
 
         if (direction === -1 && shuffleHistoryRef.current.length > 0) {
-          const previousIndex = shuffleHistoryRef.current.pop();
+          let previousId = shuffleHistoryRef.current.pop();
 
-          if (previousIndex !== undefined) {
-            shuffleQueueRef.current.unshift(safeSelectedIndex);
-            return previousIndex;
+          while (previousId && !trackIds.includes(previousId)) {
+            previousId = shuffleHistoryRef.current.pop();
+          }
+
+          if (previousId) {
+            shuffleQueueRef.current.unshift(selectedTrackId);
+            return previousId;
           }
         }
 
+        shuffleQueueRef.current = shuffleQueueRef.current.filter((id) => id !== selectedTrackId && trackIds.includes(id));
+
         if (!shuffleQueueRef.current.length) {
-          shuffleQueueRef.current = buildShuffleQueue(safeSelectedIndex);
+          shuffleQueueRef.current = buildShuffleQueue(selectedTrackId, trackIds);
         }
 
-        const nextIndex = shuffleQueueRef.current.shift();
-        if (nextIndex === undefined) {
-          return safeSelectedIndex;
+        const nextId = shuffleQueueRef.current.shift();
+        if (!nextId) {
+          return selectedTrackId;
         }
 
-        shuffleHistoryRef.current.push(safeSelectedIndex);
-        return nextIndex;
+        shuffleHistoryRef.current.push(selectedTrackId);
+        return nextId;
       }
 
-      return (safeSelectedIndex + direction + musicTracks.length) % musicTracks.length;
+      return tracks[(safeSelectedIndex + direction + tracks.length) % tracks.length]?.id ?? selectedTrackId;
     },
-    [canMove, playbackMode, safeSelectedIndex],
+    [canMove, playbackMode, safeSelectedIndex, selectedTrack?.id, trackIds, tracks],
   );
 
   const selectByDirection = useCallback(
     (direction: 1 | -1, autoplay = true) => {
-      const nextTrack = musicTracks[getNextIndex(direction)];
-      if (nextTrack) {
-        selectTrackInternal(nextTrack.id, autoplay, false);
+      const nextTrackId = getNextTrackId(direction);
+      if (nextTrackId) {
+        selectTrackInternal(nextTrackId, autoplay, false);
       }
     },
-    [getNextIndex, selectTrackInternal],
+    [getNextTrackId, selectTrackInternal],
   );
 
   const seekTo = useCallback(
@@ -362,7 +393,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       progress,
       selectedIndex: safeSelectedIndex,
       selectedTrack,
-      tracks: musicTracks,
+      tracks,
       volume,
       volumeProgress,
       pauseAudio,
@@ -392,6 +423,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       selectTrack,
       selectedTrack,
       setPlayerVolume,
+      tracks,
       toggleMute,
       togglePlay,
       volume,

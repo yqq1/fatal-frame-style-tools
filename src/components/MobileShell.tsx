@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   Film,
   Layers3,
+  LibraryBig,
   Music,
   Search,
   Settings,
@@ -10,9 +11,12 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import AdminMediaPanel from './AdminMediaPanel';
 import BlogView from './BlogView';
 import MusicView from './MusicView';
+import MuseumView from './MuseumView';
 import VideoView from './VideoView';
+import type { RuntimeMediaLibraryState } from '../hooks/useRuntimeMediaLibrary';
 import type { MobileToolCategory, MobileToolMode, NavKey, ToolCategory, ToolDefinition } from '../types/toolbox';
 
 type MobileShellProps = {
@@ -20,6 +24,7 @@ type MobileShellProps = {
   categoryLabels: Record<ToolCategory, string>;
   mobileToolCategory: MobileToolCategory;
   mobileToolMode: MobileToolMode;
+  mediaLibrary: RuntimeMediaLibraryState;
   query: string;
   selectedTool: ToolDefinition;
   tools: ToolDefinition[];
@@ -33,12 +38,13 @@ type MobileShellProps = {
 };
 
 const bottomNavItems: Array<{
-  key: Extract<NavKey, 'all' | 'blog' | 'music' | 'video' | 'settings'>;
+  key: Extract<NavKey, 'all' | 'blog' | 'museum' | 'music' | 'video' | 'settings'>;
   label: string;
   icon: typeof Layers3;
 }> = [
   { key: 'all', label: '工具', icon: Layers3 },
   { key: 'blog', label: '笔记', icon: BookOpenText },
+  { key: 'museum', label: '资料', icon: LibraryBig },
   { key: 'music', label: '音乐', icon: Music },
   { key: 'video', label: '视频', icon: Film },
   { key: 'settings', label: '设置', icon: Settings },
@@ -52,7 +58,7 @@ const mobileToolFilters: Array<{ key: MobileToolCategory; label: string }> = [
 ];
 
 function getMobileSection(activeNav: NavKey) {
-  return activeNav === 'blog' || activeNav === 'music' || activeNav === 'video' || activeNav === 'settings' ? activeNav : 'all';
+  return activeNav === 'blog' || activeNav === 'museum' || activeNav === 'music' || activeNav === 'video' || activeNav === 'settings' ? activeNav : 'all';
 }
 
 function getMobileTitle(section: ReturnType<typeof getMobileSection>, mode: MobileToolMode) {
@@ -62,6 +68,10 @@ function getMobileTitle(section: ReturnType<typeof getMobileSection>, mode: Mobi
 
   if (section === 'video') {
     return '视频';
+  }
+
+  if (section === 'museum') {
+    return '资料馆';
   }
 
   if (section === 'music') {
@@ -80,6 +90,7 @@ function MobileShell({
   categoryLabels,
   mobileToolCategory,
   mobileToolMode,
+  mediaLibrary,
   query,
   selectedTool,
   tools,
@@ -140,13 +151,15 @@ function MobileShell({
 
         <div className="mobile-surface">
           {mobileSection === 'settings' ? (
-            <MobileSettings />
+            <MobileSettings mediaLibrary={mediaLibrary} />
           ) : mobileSection === 'blog' ? (
             <BlogView variant="mobile" />
+          ) : mobileSection === 'museum' ? (
+            <MuseumView variant="mobile" onOpenMusic={() => handleNavChange('music')} onOpenVideo={() => handleNavChange('video')} />
           ) : mobileSection === 'music' ? (
             <MusicView variant="mobile" onMobilePlayerViewChange={setIsMobilePlayerActive} />
           ) : mobileSection === 'video' ? (
-            <VideoView variant="mobile" onMobilePlayerViewChange={setIsMobilePlayerActive} />
+            <VideoView variant="mobile" videos={mediaLibrary.videos} onMobilePlayerViewChange={setIsMobilePlayerActive} />
           ) : mobileToolMode === 'detail' ? (
             <section className="mobile-tool-detail">
               <div className="mobile-detail-header">
@@ -214,7 +227,7 @@ function MobileShell({
   );
 }
 
-function MobileSettings() {
+function MobileSettings({ mediaLibrary }: { mediaLibrary: RuntimeMediaLibraryState }) {
   return (
     <section className="settings-panel mobile-settings" aria-label="设置">
       <div className="section-heading">
@@ -237,6 +250,11 @@ function MobileSettings() {
           <span>当前使用暗红旧宅与红蝶主题。</span>
         </div>
       </div>
+      <AdminMediaPanel
+        runtimeAudioTracks={mediaLibrary.runtimeAudioTracks}
+        runtimeVideos={mediaLibrary.runtimeVideos}
+        onLibraryChange={mediaLibrary.refresh}
+      />
     </section>
   );
 }

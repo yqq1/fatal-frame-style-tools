@@ -14,8 +14,8 @@ export type VideoItem = {
   src?: string;
   sources?: VideoSource[];
   defaultQuality?: string;
-  poster: string;
-  thumbnail: string;
+  poster?: string;
+  thumbnail?: string;
   previewTime?: number;
 };
 
@@ -32,39 +32,7 @@ function videoSource(id: string, filename: string, type: VideoSource['type'], qu
 }
 
 export const videos: VideoItem[] = [
-  {
-    id: 'promo-film',
-    title: '宣传影片',
-    description: '本地预置的宣传视频，播放器会直接从 public/videos/promo-film 读取并播放。',
-    genre: 'Promo, Local Video',
-    duration: '00:00',
-    defaultQuality: '原始',
-    sources: [
-      videoSource('promo-film', '480p.webm', 'video/webm', '480p'),
-      videoSource('promo-film', '720p.webm', 'video/webm', '720p'),
-      videoSource('promo-film', 'original.webm', 'video/webm', '原始'),
-    ],
-    poster: videoPosterPath('promo-film'),
-    thumbnail: videoThumbPath('promo-film'),
-    previewTime: 8,
-  },
-  {
-    id: 'promo-film2',
-    title: '游戏宣传片',
-    description: '本地预置的游戏介绍片，播放器会直接从 public/videos/promo-film2 读取并播放。',
-    genre: 'Promo, Local Video',
-    duration: '00:00',
-    defaultQuality: '原始',
-    sources: [
-      videoSource('promo-film2', '480p.webm', 'video/webm', '480p'),
-      videoSource('promo-film2', '720p.webm', 'video/webm', '720p'),
-      videoSource('promo-film2', 'original.webm', 'video/webm', '原始'),
-    ],
-    poster: videoPosterPath('promo-film2'),
-    thumbnail: videoThumbPath('promo-film2'),
-    previewTime: 6,
-  },
-  {
+{
     id: 'crimson-butterfly-remake-canyang',
     title: '残阳',
     description: '零：红蝶 重制版本地视频。',
@@ -217,5 +185,15 @@ export const videos: VideoItem[] = [
     poster: videoThumbPath('crimson-butterfly-remake-uka'),
     thumbnail: videoThumbPath('crimson-butterfly-remake-uka'),
     previewTime: 6,
+  },
+  {
+    id: "红蝶-df3a947a",
+    title: "红蝶",
+    description: "零红蝶重制版",
+    genre: "Fatal Frame",
+    duration: "7:52",
+    src: videoAssetPath("红蝶-df3a947a", "original.mp4"),
+    poster: videoThumbPath("红蝶-df3a947a"),
+    thumbnail: videoThumbPath("红蝶-df3a947a"),
   },
 ];

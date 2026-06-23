@@ -1,5 +1,6 @@
 import {
   ChevronLeft,
+  Download,
   Expand,
   Film,
   Pause,
@@ -10,6 +11,7 @@ import {
   SlidersHorizontal,
   Volume2,
   VolumeX,
+  X,
 } from 'lucide-react';
 import type {
   CSSProperties,
@@ -17,8 +19,10 @@ import type {
   SyntheticEvent,
 } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { videos } from '../data/videos';
+import { videos as defaultVideos } from '../data/videos';
 import type { VideoItem, VideoSource } from '../data/videos';
+import useVideoBuffering from '../hooks/useVideoBuffering';
+import type { VideoBufferMode, VideoBufferStatus } from '../hooks/useVideoBuffering';
 import useVideoRitualMotion from '../hooks/useVideoRitualMotion';
 
 const videoPlayerStorageKey = 'fatal-frame.video-player.preferences';
@@ -32,6 +36,48 @@ function formatTime(value: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  const size = value / 1024 ** index;
+  return `${size.toFixed(index === 0 || size >= 10 ? 0 : 1)} ${units[index]}`;
+}
+
+function getBufferStatusText(
+  status: VideoBufferStatus,
+  bufferedAhead: number,
+  cacheProgress: number,
+  cacheBytes: number,
+  cacheTotalBytes: number,
+  message: string,
+) {
+  if (status === 'caching') {
+    return `正在完整缓存 ${Math.round(cacheProgress * 100)}% · ${formatBytes(cacheBytes)} / ${formatBytes(cacheTotalBytes)}`;
+  }
+
+  if (status === 'cached') {
+    return '当前会话已缓存';
+  }
+
+  if (status === 'prebuffering') {
+    return `正在预缓存 ${Math.floor(bufferedAhead)} 秒`;
+  }
+
+  if (status === 'rebuffering') {
+    return `网络缓冲中 ${Math.floor(bufferedAhead)} 秒`;
+  }
+
+  if (status === 'failed' && message) {
+    return message;
+  }
+
+  return `缓冲 ${Math.floor(bufferedAhead)} 秒`;
 }
 
 function getVideoDurationLabel(video: VideoItem) {
@@ -64,6 +110,28 @@ function getDefaultSourceIndex(video: VideoItem, sources: VideoSource[]) {
   return index >= 0 ? index : 0;
 }
 
+function getQualityRank(source: VideoSource) {
+  const value = source.quality ?? source.label ?? '';
+  const match = value.match(/(\d{3,4})p/i);
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+}
+
+function getLowerQualityIndex(sources: VideoSource[], currentIndex: number) {
+  const currentRank = getQualityRank(sources[currentIndex]);
+  let nextIndex = -1;
+  let nextRank = -1;
+
+  sources.forEach((source, index) => {
+    const rank = getQualityRank(source);
+    if (index !== currentIndex && rank < currentRank && rank > nextRank) {
+      nextIndex = index;
+      nextRank = rank;
+    }
+  });
+
+  return nextIndex;
+}
+
 function loadVideoPlayerPreferences() {
   if (typeof window === 'undefined') {
     return null;
@@ -76,11 +144,13 @@ function loadVideoPlayerPreferences() {
     }
 
     const parsed = JSON.parse(rawValue) as {
+      bufferMode?: VideoBufferMode;
       isMuted?: boolean;
       volume?: number;
     };
 
     return {
+      bufferMode: parsed.bufferMode === 'session-cache' ? 'session-cache' : 'stream' as VideoBufferMode,
       isMuted: Boolean(parsed.isMuted),
       volume: typeof parsed.volume === 'number' ? Math.min(Math.max(parsed.volume, 0), 1) : 0.82,
     };
@@ -103,7 +173,13 @@ function RitualMarks() {
 function VideoThumbnail({ video, isSelected }: { video: VideoItem; isSelected: boolean }) {
   return (
     <span className="video-thumb">
-      <img src={video.thumbnail} alt="" />
+      {video.thumbnail ? (
+        <img src={video.thumbnail} alt="" />
+      ) : (
+        <span className="video-thumb-placeholder" aria-hidden="true">
+          <Film size={24} />
+        </span>
+      )}
       {isSelected ? (
         <span className="playing-equalizer" aria-hidden="true">
           <i />
@@ -117,19 +193,31 @@ function VideoThumbnail({ video, isSelected }: { video: VideoItem; isSelected: b
 
 type VideoViewProps = {
   variant?: 'desktop' | 'mobile';
+  videos?: VideoItem[];
   onMobilePlayerViewChange?: (active: boolean) => void;
 };
 
 type MobileMediaView = 'list' | 'player';
 
-function VideoView({ variant = 'desktop', onMobilePlayerViewChange }: VideoViewProps) {
+function VideoView({ variant = 'desktop', videos = defaultVideos, onMobilePlayerViewChange }: VideoViewProps) {
   const [selectedId, setSelectedId] = useState(videos[0]?.id ?? '');
   const [mobileView, setMobileView] = useState<MobileMediaView>('list');
   const selectedVideo = useMemo(
     () => videos.find((video) => video.id === selectedId) ?? videos[0],
-    [selectedId],
+    [selectedId, videos],
   );
   const isMobile = variant === 'mobile';
+
+  useEffect(() => {
+    if (videos.length === 0) {
+      setSelectedId('');
+      return;
+    }
+
+    if (!videos.some((video) => video.id === selectedId)) {
+      setSelectedId(videos[0].id);
+    }
+  }, [selectedId, videos]);
 
   useEffect(() => {
     if (isMobile) {
@@ -167,6 +255,7 @@ function VideoView({ variant = 'desktop', onMobilePlayerViewChange }: VideoViewP
       mobileView={mobileView}
       selectedVideo={selectedVideo}
       variant={variant}
+      videos={videos}
       onMobileBack={() => setMobileView('list')}
       onSelect={handleSelect}
     />
@@ -177,12 +266,14 @@ function VideoPlayer({
   mobileView,
   selectedVideo,
   variant,
+  videos,
   onMobileBack,
   onSelect,
 }: {
   mobileView?: MobileMediaView;
   selectedVideo: VideoItem;
   variant: 'desktop' | 'mobile';
+  videos: VideoItem[];
   onMobileBack?: () => void;
   onSelect: (id: string) => void;
 }) {
@@ -198,6 +289,7 @@ function VideoPlayer({
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [bufferMode, setBufferMode] = useState<VideoBufferMode>(storedPreferences?.bufferMode ?? 'stream');
   const [volume, setVolume] = useState(storedPreferences?.volume ?? 0.82);
   const [isMuted, setIsMuted] = useState(storedPreferences?.isMuted ?? false);
   const [hasError, setHasError] = useState(false);
@@ -214,11 +306,41 @@ function VideoPlayer({
   const selectedSourceLabel = selectedSource ? getSourceLabel(selectedSource, safeSourceIndex) : '';
   const selectedDurationLabel = getVideoDurationLabel(selectedVideo);
   const sourceHint = videoSources.map((source, index) => `${getSourceLabel(source, index)}: ${source.src}`).join(' 或 ');
-  const shouldHideControls = isPlaying && !isControlsVisible && !isQualityMenuOpen && !isVolumePanelOpen && !hasError;
+  const lowerQualityIndex = getLowerQualityIndex(videoSources, safeSourceIndex);
   const isMobile = variant === 'mobile';
   const safeMobileView = mobileView ?? 'player';
   const showPlayer = !isMobile || safeMobileView === 'player';
   const showPlaylist = !isMobile || safeMobileView === 'list';
+  const buffering = useVideoBuffering({
+    isMobile,
+    mode: bufferMode,
+    sourceUrl: selectedSource?.src ?? '',
+    videoRef,
+    onSessionCacheReady: (shouldPlay) => {
+      const video = videoRef.current;
+      pendingSourceSwitchRef.current = {
+        shouldPlay,
+        time: video?.currentTime ?? currentTime,
+      };
+    },
+  });
+  const activeSourceUrl = buffering.playbackSourceUrl;
+  const shouldHideControls =
+    isPlaying &&
+    !isControlsVisible &&
+    !isQualityMenuOpen &&
+    !isVolumePanelOpen &&
+    !hasError &&
+    !buffering.isBuffering &&
+    !buffering.isCaching;
+  const bufferStatusText = getBufferStatusText(
+    buffering.status,
+    buffering.bufferedAhead,
+    buffering.cacheProgress,
+    buffering.cacheBytes,
+    buffering.cacheTotalBytes,
+    buffering.message,
+  );
 
   useVideoRitualMotion(motionRootRef, [isPlaying, selectedVideo.id, isQualityMenuOpen, isVolumePanelOpen]);
 
@@ -237,6 +359,7 @@ function VideoPlayer({
       window.localStorage.setItem(
         videoPlayerStorageKey,
         JSON.stringify({
+          bufferMode,
           isMuted,
           volume,
         }),
@@ -244,7 +367,7 @@ function VideoPlayer({
     } catch {
       return;
     }
-  }, [isMuted, volume]);
+  }, [bufferMode, isMuted, volume]);
 
   useEffect(() => {
     setSelectedSourceIndex(getDefaultSourceIndex(selectedVideo, getVideoSources(selectedVideo)));
@@ -279,12 +402,12 @@ function VideoPlayer({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !selectedSource?.src) {
+    if (!video || !activeSourceUrl) {
       return;
     }
 
     video.load();
-  }, [selectedSource?.src]);
+  }, [activeSourceUrl]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -366,13 +489,9 @@ function VideoPlayer({
     }
 
     if (video.paused) {
-      try {
-        await video.play();
-        setIsPlaying(true);
-      } catch {
-        setIsPlaying(false);
-      }
+      buffering.requestPlayback();
     } else {
+      buffering.markUserPaused();
       video.pause();
       setIsPlaying(false);
     }
@@ -414,6 +533,7 @@ function VideoPlayer({
   function handleLoadedMetadata(event: SyntheticEvent<HTMLVideoElement>) {
     const video = event.currentTarget;
     setDuration(video.duration || 0);
+    buffering.handleBufferEvent();
 
     const pendingSwitch = pendingSourceSwitchRef.current;
     if (!pendingSwitch) {
@@ -430,10 +550,7 @@ function VideoPlayer({
 
     pendingSourceSwitchRef.current = null;
     if (pendingSwitch.shouldPlay) {
-      void video.play().then(
-        () => setIsPlaying(true),
-        () => setIsPlaying(false),
-      );
+      buffering.requestPlayback();
     }
   }
 
@@ -448,6 +565,7 @@ function VideoPlayer({
       time: video?.currentTime ?? currentTime,
       shouldPlay: Boolean(video && !video.paused && !hasError),
     };
+    buffering.clearSessionCache();
     setHasError(false);
     setSelectedSourceIndex(nextIndex);
   }
@@ -487,6 +605,23 @@ function VideoPlayer({
     const nextVolume = Math.min(Math.max(value, 0), 1);
     setVolume(nextVolume);
     setIsMuted(nextVolume <= 0);
+  }
+
+  function changeBufferMode(nextMode: VideoBufferMode) {
+    if (nextMode === bufferMode) {
+      return;
+    }
+
+    if (nextMode === 'stream' && buffering.playbackSourceUrl !== selectedSource?.src) {
+      const video = videoRef.current;
+      pendingSourceSwitchRef.current = {
+        shouldPlay: Boolean(video && !video.paused),
+        time: video?.currentTime ?? currentTime,
+      };
+      buffering.clearSessionCache();
+    }
+
+    setBufferMode(nextMode);
   }
 
   function clearControlsHideTimer() {
@@ -558,21 +693,37 @@ function VideoPlayer({
           <video
             ref={videoRef}
             poster={selectedVideo.poster}
-            preload="metadata"
-            src={selectedSource?.src}
+            src={activeSourceUrl}
+            preload="auto"
             onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
             onLoadedMetadata={handleLoadedMetadata}
-            onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-            onPlay={() => {
-              setHasPlaybackStarted(true);
-              setIsPlaying(true);
+            onCanPlay={buffering.handleBufferEvent}
+            onEnded={() => {
+              buffering.handleEnded();
+              setIsPlaying(false);
             }}
-            onPause={() => setIsPlaying(false)}
-            onEnded={() => setIsPlaying(false)}
             onError={() => {
+              buffering.handleError();
               setHasError(true);
               setIsPlaying(false);
             }}
+            onPlay={() => {
+              buffering.handlePlaying();
+              setHasPlaybackStarted(true);
+              setIsPlaying(true);
+            }}
+            onPause={() => {
+              buffering.handlePause();
+              setIsPlaying(false);
+            }}
+            onProgress={buffering.handleBufferEvent}
+            onSeeked={buffering.handleBufferEvent}
+            onStalled={buffering.handleWaiting}
+            onTimeUpdate={(event) => {
+              setCurrentTime(event.currentTarget.currentTime);
+              buffering.handleBufferEvent();
+            }}
+            onWaiting={buffering.handleWaiting}
           />
 
           <div className="video-shade" />
@@ -615,6 +766,40 @@ function VideoPlayer({
                 </span>
               </span>
               <span>{formatTime(duration)}</span>
+            </div>
+
+            <div className={`video-buffer-panel is-${buffering.status}`} aria-live="polite">
+              <div className="video-buffer-modes" role="group" aria-label="网络播放模式">
+                <button
+                  className={bufferMode === 'stream' ? 'active' : ''}
+                  type="button"
+                  aria-pressed={bufferMode === 'stream'}
+                  onClick={() => changeBufferMode('stream')}
+                >
+                  流式
+                </button>
+                <button
+                  className={bufferMode === 'session-cache' ? 'active' : ''}
+                  type="button"
+                  aria-pressed={bufferMode === 'session-cache'}
+                  onClick={() => changeBufferMode('session-cache')}
+                >
+                  <Download size={13} aria-hidden="true" />
+                  完整缓存
+                </button>
+              </div>
+              <span className="video-buffer-status">{bufferStatusText}</span>
+              {buffering.isCaching ? (
+                <button className="video-buffer-action" type="button" aria-label="取消完整缓存" title="取消完整缓存" onClick={buffering.cancelSessionCache}>
+                  <X size={15} aria-hidden="true" />
+                </button>
+              ) : null}
+              {buffering.shouldRecommendLowerQuality && lowerQualityIndex >= 0 ? (
+                <button className="video-buffer-action video-buffer-lower-quality" type="button" onClick={() => chooseQuality(lowerQualityIndex)}>
+                  <SlidersHorizontal size={14} aria-hidden="true" />
+                  降清
+                </button>
+              ) : null}
             </div>
 
             {variant === 'mobile' ? (

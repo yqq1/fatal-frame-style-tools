@@ -1,0 +1,136 @@
+{
+  "works": [
+    {
+      "id": "fatal-frame",
+      "title": "零 zero",
+      "aliases": [
+        "FATAL FRAME",
+        "PROJECT ZERO"
+      ],
+      "latestVersion": "原版资料条目",
+      "year": 2001,
+      "summary": "系列开端，围绕冰室邸、射影机和被封存的仪式展开。",
+      "spoilerSummary": "关键真相、结局与仪式细节默认收起，后续可在编辑器中补充。",
+      "tags": [
+        "冰室邸",
+        "射影机",
+        "仪式"
+      ],
+      "cover": "/images/museum/fatal-frame/cover.png",
+      "videoIds": [],
+      "musicIds": []
+    },
+    {
+      "id": "crimson-butterfly-remake",
+      "title": "零：红蝶",
+      "aliases": [
+        "FATAL FRAME II",
+        "PROJECT ZERO II",
+        "真红之蝶",
+        "Crimson Butterfly"
+      ],
+      "latestVersion": "Crimson Butterfly Remake",
+      "year": 2026,
+      "summary": "以双子、皆神村和红蝶传承为核心的系列代表作资料条目。",
+      "spoilerSummary": "双子仪式、不同结局和重制版差异可在这里继续整理。",
+      "tags": [
+        "皆神村",
+        "双子",
+        "红蝶"
+      ],
+      "cover": "/images/museum/crimson-butterfly-remake/cover.png",
+      "videoIds": [
+        "crimson-butterfly-remake-canyang",
+        "crimson-butterfly-remake-yueding",
+        "crimson-butterfly-remake-mijia",
+        "crimson-butterfly-remake-uka"
+      ],
+      "musicIds": [
+        "chou-amano-tsukiko"
+      ]
+    },
+    {
+      "id": "tattooed-voice",
+      "title": "零：刺青之声",
+      "aliases": [
+        "FATAL FRAME III",
+        "PROJECT ZERO 3"
+      ],
+      "latestVersion": "原版资料条目",
+      "year": 2005,
+      "summary": "以梦境、刺青诅咒和现实侵蚀为核心的资料条目。",
+      "spoilerSummary": "眠之家、刺青仪式和角色结局可在这里继续补充。",
+      "tags": [
+        "眠之家",
+        "刺青",
+        "梦境"
+      ],
+      "cover": "/images/museum/tattooed-voice/cover.png",
+      "videoIds": [
+        "tattooed-voice-koe-mv",
+        "fatal-frame-tattooed-voice"
+      ],
+      "musicIds": [
+        "koe-amano-tsukiko"
+      ]
+    },
+    {
+      "id": "mask-of-lunar-eclipse",
+      "title": "零：月蚀的假面",
+      "aliases": [
+        "Mask of the Lunar Eclipse",
+        "PROJECT ZERO 4"
+      ],
+      "latestVersion": "Remaster",
+      "year": 2023,
+      "summary": "围绕胧月岛、月幽病和面具仪式展开的资料条目。",
+      "spoilerSummary": "胧月神乐、角色记忆和结局信息可在这里继续整理。",
+      "tags": [
+        "胧月岛",
+        "月幽病",
+        "面具"
+      ],
+      "cover": "/images/museum/mask-of-lunar-eclipse/cover.png",
+      "videoIds": [],
+      "musicIds": [
+        "Yueshou-song-Minazuki Ruka"
+      ]
+    },
+    {
+      "id": "maiden-of-black-water",
+      "title": "零：濡鸦之巫女",
+      "aliases": [
+        "Maiden of Black Water",
+        "PROJECT ZERO 5"
+      ],
+      "latestVersion": "Remaster",
+      "year": 2021,
+      "summary": "以日上山、看取和水的诅咒为核心的资料条目。",
+      "spoilerSummary": "夜泉、巫女传承、多结局和角色关系可在这里继续补充。",
+      "tags": [
+        "日上山",
+        "夜泉",
+        "看取"
+      ],
+      "cover": "/images/museum/maiden-of-black-water/cover.png",
+      "videoIds": [
+        "maiden-black-water-famous-scene",
+        "maiden-black-water-yuri-bride",
+        "maiden-black-water-torikago-mv",
+        "maiden-black-water-higanbana-mv"
+      ],
+      "musicIds": [
+        "torikago-in-this-cage-amano-tsuki",
+        "anju-higanbana"
+      ]
+    }
+  ],
+  "progress": {
+    "fatal-frame": {
+      "status": "completed",
+      "favorite": false,
+      "note": ""
+    }
+  },
+  "updatedAt": "2026-06-18T07:31:29.348Z"
+}
