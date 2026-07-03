@@ -10,12 +10,13 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import AdminMediaPanel from './AdminMediaPanel';
 import BlogView from './BlogView';
 import MusicView from './MusicView';
 import MuseumView from './MuseumView';
 import VideoView from './VideoView';
+import type { MuseumDocument, MuseumWork } from '../data/fatalFrameMuseum';
 import type { RuntimeMediaLibraryState } from '../hooks/useRuntimeMediaLibrary';
 import type { MobileToolCategory, MobileToolMode, NavKey, ToolCategory, ToolDefinition } from '../types/toolbox';
 
@@ -36,6 +37,13 @@ type MobileShellProps = {
   renderToolCard: (tool: ToolDefinition, selected: boolean, onSelect: () => void) => JSX.Element;
   renderToolWorkbench: (tool: ToolDefinition) => JSX.Element;
 };
+
+type MuseumPdfSelection = {
+  document: MuseumDocument;
+  work: MuseumWork;
+};
+
+const MuseumPdfReader = lazy(() => import('./MuseumPdfReader'));
 
 const bottomNavItems: Array<{
   key: Extract<NavKey, 'all' | 'blog' | 'museum' | 'music' | 'video' | 'settings'>;
@@ -104,6 +112,8 @@ function MobileShell({
 }: MobileShellProps) {
   const mobileSection = getMobileSection(activeNav);
   const [isMobilePlayerActive, setIsMobilePlayerActive] = useState(false);
+  const [museumPdfSelection, setMuseumPdfSelection] = useState<MuseumPdfSelection | null>(null);
+  const [selectedMuseumWorkId, setSelectedMuseumWorkId] = useState('');
   const title = getMobileTitle(mobileSection, mobileToolMode);
   const filteredTools = tools.filter((tool) => {
     const keyword = query.trim().toLocaleLowerCase();
@@ -119,16 +129,20 @@ function MobileShell({
 
   function handleNavChange(key: NavKey) {
     setIsMobilePlayerActive(false);
+    setMuseumPdfSelection(null);
     onNavChange(key);
     onMobileToolModeChange('list');
   }
 
   useEffect(() => {
     setIsMobilePlayerActive(false);
+    if (mobileSection !== 'museum') {
+      setMuseumPdfSelection(null);
+    }
   }, [mobileSection]);
 
   return (
-    <main className={`mobile-shell ${isMobilePlayerActive ? 'mobile-player-active' : ''}`}>
+    <main className={`mobile-shell ${isMobilePlayerActive ? 'mobile-player-active' : ''} ${museumPdfSelection ? 'mobile-pdf-active' : ''}`}>
       <div className="grain" />
       <div className="pattern-veil" aria-hidden="true" />
 
@@ -155,7 +169,25 @@ function MobileShell({
           ) : mobileSection === 'blog' ? (
             <BlogView variant="mobile" />
           ) : mobileSection === 'museum' ? (
-            <MuseumView variant="mobile" onOpenMusic={() => handleNavChange('music')} onOpenVideo={() => handleNavChange('video')} />
+            museumPdfSelection ? (
+              <Suspense fallback={<div className="museum-pdf-state"><strong>正在准备阅读器</strong></div>}>
+                <MuseumPdfReader
+                  document={museumPdfSelection.document}
+                  variant="mobile"
+                  work={museumPdfSelection.work}
+                  onBack={() => setMuseumPdfSelection(null)}
+                />
+              </Suspense>
+            ) : (
+              <MuseumView
+                selectedWorkId={selectedMuseumWorkId}
+                variant="mobile"
+                onSelectWork={setSelectedMuseumWorkId}
+                onOpenDocument={(work, document) => setMuseumPdfSelection({ document, work })}
+                onOpenMusic={() => handleNavChange('music')}
+                onOpenVideo={() => handleNavChange('video')}
+              />
+            )
           ) : mobileSection === 'music' ? (
             <MusicView variant="mobile" onMobilePlayerViewChange={setIsMobilePlayerActive} />
           ) : mobileSection === 'video' ? (
@@ -210,7 +242,7 @@ function MobileShell({
         </div>
       </section>
 
-      <nav className={`mobile-bottom-nav ${isMobilePlayerActive ? 'hidden' : ''}`} aria-label="主要导航">
+      <nav className={`mobile-bottom-nav ${isMobilePlayerActive || museumPdfSelection ? 'hidden' : ''}`} aria-label="主要导航">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
           const active = item.key === mobileSection;

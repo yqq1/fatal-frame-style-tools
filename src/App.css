@@ -118,6 +118,118 @@
     linear-gradient(90deg, oklch(7% 0.01 24 / 0.86), transparent 54%);
 }
 
+.water-distortion-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  opacity: 0.62;
+  mix-blend-mode: screen;
+  overflow: visible;
+  mask-image:
+    radial-gradient(ellipse at 50% 48%, transparent 0 31%, black 58%),
+    linear-gradient(90deg, black 0 18%, transparent 40% 60%, black 82% 100%);
+  animation: water-distortion-pulse 19s ease-in-out infinite alternate;
+}
+
+.water-distortion-forms {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: water-forms-drift 24s ease-in-out infinite alternate;
+}
+
+.water-form {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.water-form-right {
+  animation: water-shadow-right 20s ease-in-out infinite alternate;
+}
+
+.water-form-bottom {
+  animation: water-shadow-bottom 22s ease-in-out infinite alternate;
+}
+
+.water-form-left {
+  animation: water-shadow-left 18s ease-in-out infinite alternate;
+}
+
+.water-form-corner {
+  animation: water-shadow-corner 16s ease-in-out infinite alternate;
+}
+
+@keyframes water-distortion-pulse {
+  from {
+    opacity: 0.46;
+  }
+
+  to {
+    opacity: 0.7;
+  }
+}
+
+@keyframes water-forms-drift {
+  from {
+    transform: translate3d(-10px, 8px, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(16px, -10px, 0) scale(1.025);
+  }
+}
+
+@keyframes water-shadow-right {
+  from {
+    opacity: 0.58;
+    transform: translate3d(18px, -18px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 0.88;
+    transform: translate3d(-26px, 24px, 0) scale(1.08);
+  }
+}
+
+@keyframes water-shadow-bottom {
+  from {
+    opacity: 0.34;
+    transform: translate3d(-28px, 18px, 0) scaleX(0.96);
+  }
+
+  to {
+    opacity: 0.62;
+    transform: translate3d(36px, -14px, 0) scaleX(1.04);
+  }
+}
+
+@keyframes water-shadow-left {
+  from {
+    opacity: 0.34;
+    transform: translate3d(-18px, 24px, 0) scale(0.96);
+  }
+
+  to {
+    opacity: 0.54;
+    transform: translate3d(18px, -18px, 0) scale(1.04);
+  }
+}
+
+@keyframes water-shadow-corner {
+  from {
+    opacity: 0.22;
+    transform: translate3d(16px, 18px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 0.48;
+    transform: translate3d(-24px, -12px, 0) scale(1.08);
+  }
+}
+
 .sidebar,
 .workspace {
   position: relative;
@@ -727,6 +839,13 @@ h2 {
 
 .home-dashboard-tool-active .workbench {
   padding: 28px;
+}
+
+.home-dashboard-markdown-note {
+  height: auto;
+  min-height: 100%;
+  grid-template-rows: auto;
+  align-items: start;
 }
 
 .tool-list,
@@ -4400,6 +4519,10 @@ h2 {
     padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
+  .mobile-shell.mobile-pdf-active {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
   .mobile-shell .pattern-veil {
     opacity: 0.16;
     mask-image: linear-gradient(180deg, black 0 54%, transparent 100%);
@@ -5056,6 +5179,10 @@ h2 {
   }
 
   .mobile-shell.mobile-player-active {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-shell.mobile-pdf-active {
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
 
@@ -6208,6 +6335,240 @@ h2 {
   .mobile-shell .music-mode-menu {
     right: -18px;
     min-width: 128px;
+  }
+}
+
+.markdown-note-workbench {
+  display: block;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.markdown-note-workbench .workbench-text {
+  max-width: 78ch;
+  margin-top: 22px;
+}
+
+.markdown-note-workbench::after,
+.markdown-note-workbench > .viewfinder,
+.markdown-note-workbench > .viewfinder span {
+  display: none;
+}
+
+.markdown-note-butterfly {
+  opacity: 0.34;
+}
+
+.markdown-note-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.markdown-note-panel,
+.markdown-note-output {
+  position: relative;
+  min-width: 0;
+  border: 1px solid oklch(43% 0.05 42 / 0.52);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, oklch(27% 0.04 34 / 0.36), transparent 68%),
+    oklch(12% 0.014 29 / 0.74);
+  box-shadow: inset 0 0 0 1px oklch(82% 0.04 48 / 0.035);
+}
+
+.markdown-note-panel {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+}
+
+.markdown-note-panel:first-child {
+  grid-row: span 2;
+}
+
+.markdown-note-output-wide {
+  grid-column: 1 / -1;
+}
+
+.markdown-note-panel-head,
+.markdown-note-output-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  color: oklch(86% 0.03 52);
+}
+
+.markdown-note-panel-head {
+  justify-content: flex-start;
+}
+
+.markdown-note-panel-head svg {
+  color: oklch(74% 0.11 32);
+}
+
+.markdown-note-panel-head strong,
+.markdown-note-output-head strong {
+  color: oklch(94% 0.014 56);
+  font-family: var(--font-display);
+  font-size: 0.96rem;
+}
+
+.markdown-note-panel textarea,
+.markdown-note-meta-grid input,
+.markdown-note-meta-grid textarea,
+.markdown-note-output textarea,
+.markdown-note-output input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid oklch(43% 0.05 42 / 0.52);
+  border-radius: 7px;
+  color: oklch(90% 0.018 56);
+  background: oklch(9% 0.012 28 / 0.72);
+  font: inherit;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.markdown-note-panel textarea,
+.markdown-note-output textarea {
+  min-height: 300px;
+  padding: 12px;
+  resize: vertical;
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.markdown-note-meta-grid input,
+.markdown-note-output input {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.markdown-note-meta-grid textarea {
+  min-height: 78px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.markdown-note-panel textarea:focus,
+.markdown-note-meta-grid input:focus,
+.markdown-note-meta-grid textarea:focus,
+.markdown-note-output textarea:focus,
+.markdown-note-output input:focus {
+  border-color: oklch(62% 0.13 28 / 0.68);
+  background: oklch(10% 0.014 28 / 0.9);
+  box-shadow: 0 0 0 3px oklch(42% 0.15 24 / 0.14);
+}
+
+.markdown-note-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.markdown-note-meta-grid label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.markdown-note-meta-grid label:last-child {
+  grid-column: 1 / -1;
+}
+
+.markdown-note-meta-grid span,
+.markdown-note-output span {
+  color: oklch(70% 0.025 55);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.markdown-note-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.markdown-note-actions button,
+.markdown-note-output-head button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid oklch(45% 0.05 42 / 0.56);
+  border-radius: 7px;
+  color: oklch(82% 0.024 55);
+  background: oklch(16% 0.017 30 / 0.82);
+  font-weight: 800;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.markdown-note-actions button:hover,
+.markdown-note-output-head button:hover {
+  transform: translateY(-1px);
+  border-color: oklch(60% 0.13 28 / 0.68);
+  color: oklch(96% 0.018 56);
+  background: oklch(22% 0.035 29 / 0.9);
+}
+
+.markdown-note-actions .primary-action {
+  border-color: oklch(64% 0.14 28 / 0.72);
+  color: oklch(97% 0.018 56);
+  background:
+    radial-gradient(circle at 18% 0%, oklch(62% 0.16 25 / 0.22), transparent 76%),
+    oklch(26% 0.055 28 / 0.92);
+  box-shadow: 0 0 28px oklch(42% 0.15 24 / 0.18);
+}
+
+.markdown-note-message {
+  margin: 0;
+  color: oklch(78% 0.035 56);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.markdown-note-output {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+}
+
+.markdown-note-output textarea {
+  min-height: 210px;
+}
+
+@media (max-width: 980px) {
+  .markdown-note-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .markdown-note-panel:first-child,
+  .markdown-note-output-wide {
+    grid-row: auto;
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .markdown-note-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .markdown-note-panel textarea {
+    min-height: 240px;
   }
 }
 
@@ -7667,6 +8028,16 @@ h2 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .water-distortion-veil,
+  .water-distortion-forms,
+  .water-form {
+    animation: none !important;
+  }
+
+  .water-distortion-veil {
+    opacity: 0.24;
+  }
+
   *,
   *::before,
   *::after {

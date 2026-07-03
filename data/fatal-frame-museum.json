@@ -16,9 +16,19 @@
         "射影机",
         "仪式"
       ],
-      "cover": "/images/museum/fatal-frame/cover.png",
+      "cover": "/images/museum/fatal-frame/pdf-cover.png",
       "videoIds": [],
-      "musicIds": []
+      "musicIds": [],
+      "documents": [
+        {
+          "id": "zero-guide-culture-95-199",
+          "title": "零宝典 攻略文典藏化专辑（文化篇）",
+          "file": "/documents/museum/fatal-frame-culture.pdf",
+          "pageStart": 1,
+          "pageEnd": 22,
+          "description": "收录系列设定、民俗与作品资料的典藏 PDF。"
+        }
+      ]
     },
     {
       "id": "crimson-butterfly-remake",
@@ -38,7 +48,7 @@
         "双子",
         "红蝶"
       ],
-      "cover": "/images/museum/crimson-butterfly-remake/cover.png",
+      "cover": "/images/museum/crimson-butterfly-remake/pdf-cover.png",
       "videoIds": [
         "crimson-butterfly-remake-canyang",
         "crimson-butterfly-remake-yueding",
@@ -47,6 +57,16 @@
       ],
       "musicIds": [
         "chou-amano-tsukiko"
+      ],
+      "documents": [
+        {
+          "id": "zero-guide-culture-95-199",
+          "title": "零宝典 攻略文典藏化专辑（文化篇）",
+          "file": "/documents/museum/crimson-butterfly-culture.pdf",
+          "pageStart": 1,
+          "pageEnd": 24,
+          "description": "收录系列设定、民俗与作品资料的典藏 PDF。"
+        }
       ]
     },
     {
@@ -65,13 +85,23 @@
         "刺青",
         "梦境"
       ],
-      "cover": "/images/museum/tattooed-voice/cover.png",
+      "cover": "/images/museum/tattooed-voice/pdf-cover.png",
       "videoIds": [
         "tattooed-voice-koe-mv",
         "fatal-frame-tattooed-voice"
       ],
       "musicIds": [
         "koe-amano-tsukiko"
+      ],
+      "documents": [
+        {
+          "id": "zero-guide-culture-95-199",
+          "title": "零宝典 攻略文典藏化专辑（文化篇）",
+          "file": "/documents/museum/tattooed-voice-culture.pdf",
+          "pageStart": 1,
+          "pageEnd": 27,
+          "description": "收录系列设定、民俗与作品资料的典藏 PDF。"
+        }
       ]
     },
     {
@@ -90,10 +120,20 @@
         "月幽病",
         "面具"
       ],
-      "cover": "/images/museum/mask-of-lunar-eclipse/cover.png",
+      "cover": "/images/museum/mask-of-lunar-eclipse/pdf-cover.png",
       "videoIds": [],
       "musicIds": [
         "Yueshou-song-Minazuki Ruka"
+      ],
+      "documents": [
+        {
+          "id": "zero-guide-culture-95-199",
+          "title": "零宝典 攻略文典藏化专辑（文化篇）",
+          "file": "/documents/museum/mask-of-lunar-eclipse-culture.pdf",
+          "pageStart": 1,
+          "pageEnd": 10,
+          "description": "收录系列设定、民俗与作品资料的典藏 PDF。"
+        }
       ]
     },
     {
@@ -112,7 +152,7 @@
         "夜泉",
         "看取"
       ],
-      "cover": "/images/museum/maiden-of-black-water/cover.png",
+      "cover": "/images/museum/maiden-of-black-water/pdf-cover.png",
       "videoIds": [
         "maiden-black-water-famous-scene",
         "maiden-black-water-yuri-bride",
@@ -122,15 +162,45 @@
       "musicIds": [
         "torikago-in-this-cage-amano-tsuki",
         "anju-higanbana"
+      ],
+      "documents": [
+        {
+          "id": "zero-guide-culture-95-199",
+          "title": "零宝典 攻略文典藏化专辑（文化篇）",
+          "file": "/documents/museum/maiden-of-black-water-culture.pdf",
+          "pageStart": 1,
+          "pageEnd": 18,
+          "description": "收录系列设定、民俗与作品资料的典藏 PDF。"
+        }
       ]
     }
   ],
   "progress": {
     "fatal-frame": {
-      "status": "completed",
+      "status": "wishlist",
+      "favorite": false,
+      "note": ""
+    },
+    "maiden-of-black-water": {
+      "status": "wishlist",
+      "favorite": false,
+      "note": ""
+    },
+    "mask-of-lunar-eclipse": {
+      "status": "wishlist",
+      "favorite": false,
+      "note": ""
+    },
+    "tattooed-voice": {
+      "status": "wishlist",
+      "favorite": false,
+      "note": ""
+    },
+    "crimson-butterfly-remake": {
+      "status": "wishlist",
       "favorite": false,
       "note": ""
     }
   },
-  "updatedAt": "2026-06-18T07:31:29.348Z"
+  "updatedAt": "2026-06-24T08:34:50.323Z"
 }

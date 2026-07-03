@@ -1,16 +1,25 @@
-import { BookOpenText, ChevronRight, Edit3, Film, Music as MusicIcon, Star } from 'lucide-react';
+import { BookOpenText, ChevronRight, Edit3, FileText, Film, Music as MusicIcon, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { fatalFrameMuseumSeed, museumProgressLabels } from '../data/fatalFrameMuseum';
-import type { MuseumData, MuseumProgress, MuseumProgressStatus, MuseumWork } from '../data/fatalFrameMuseum';
+import type { MuseumData, MuseumDocument, MuseumProgress, MuseumProgressStatus, MuseumWork } from '../data/fatalFrameMuseum';
+import {
+  getMuseumPdfProgressKey,
+  museumPdfProgressEventName,
+  museumPdfProgressStorageKey,
+  readMuseumPdfProgressState,
+} from '../lib/museumPdfProgress';
 import { musicTracks } from '../data/music';
 import { videos } from '../data/videos';
 import MuseumEditor from './MuseumEditor';
 
 type MuseumViewProps = {
+  selectedWorkId?: string;
   variant?: 'desktop' | 'mobile';
   onOpenMusic?: () => void;
   onOpenVideo?: () => void;
+  onOpenDocument?: (work: MuseumWork, document: MuseumDocument) => void;
+  onSelectWork?: (workId: string) => void;
 };
 
 const progressOptions: Array<{ key: MuseumProgressStatus; label: string }> = [
@@ -28,6 +37,10 @@ const emptyProgress: MuseumProgress = {
 
 function getProgress(data: MuseumData, workId: string) {
   return data.progress[workId] ?? emptyProgress;
+}
+
+function getClampedDocumentProgressPage(page: number, document: MuseumDocument) {
+  return Math.min(Math.max(page, document.pageStart), document.pageEnd);
 }
 
 function MuseumCover({ work }: { work: MuseumWork }) {
@@ -48,10 +61,12 @@ function MuseumCover({ work }: { work: MuseumWork }) {
   return <img src={work.cover} alt="" onError={() => setFailed(true)} />;
 }
 
-function MuseumView({ variant = 'desktop', onOpenMusic, onOpenVideo }: MuseumViewProps) {
+function MuseumView({ selectedWorkId, variant = 'desktop', onOpenDocument, onOpenMusic, onOpenVideo, onSelectWork }: MuseumViewProps) {
   const { selectTrack } = useMusicPlayer();
   const [museum, setMuseum] = useState<MuseumData>(fatalFrameMuseumSeed);
-  const [selectedId, setSelectedId] = useState(fatalFrameMuseumSeed.works[0]?.id ?? '');
+  const [documentProgress, setDocumentProgress] = useState(() => readMuseumPdfProgressState());
+  const [internalSelectedId, setInternalSelectedId] = useState(selectedWorkId ?? fatalFrameMuseumSeed.works[0]?.id ?? '');
+  const selectedId = selectedWorkId ?? internalSelectedId;
   const [filter, setFilter] = useState<MuseumProgressStatus | 'all' | 'favorite'>('all');
   const [editingWorkId, setEditingWorkId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -79,6 +94,11 @@ function MuseumView({ variant = 'desktop', onOpenMusic, onOpenVideo }: MuseumVie
 
   const selectedProgress = selectedWork ? getProgress(museum, selectedWork.id) : emptyProgress;
 
+  function selectMuseumWork(workId: string) {
+    setInternalSelectedId(workId);
+    onSelectWork?.(workId);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -97,7 +117,9 @@ function MuseumView({ variant = 'desktop', onOpenMusic, onOpenVideo }: MuseumVie
         if (!cancelled) {
           const nextMuseum = payload.museum as MuseumData;
           setMuseum(nextMuseum);
-          setSelectedId(nextMuseum.works[0]?.id ?? '');
+          if (nextMuseum.works.length > 0 && !nextMuseum.works.some((work) => work.id === selectedId)) {
+            selectMuseumWork(nextMuseum.works[0].id);
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -120,9 +142,31 @@ function MuseumView({ variant = 'desktop', onOpenMusic, onOpenVideo }: MuseumVie
 
   useEffect(() => {
     if (museum.works.length > 0 && !museum.works.some((work) => work.id === selectedId)) {
-      setSelectedId(museum.works[0].id);
+      selectMuseumWork(museum.works[0].id);
     }
   }, [museum.works, selectedId]);
+
+  useEffect(() => {
+    function refreshDocumentProgress() {
+      setDocumentProgress(readMuseumPdfProgressState());
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key !== museumPdfProgressStorageKey) {
+        return;
+      }
+
+      refreshDocumentProgress();
+    }
+
+    window.addEventListener(museumPdfProgressEventName, refreshDocumentProgress);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener(museumPdfProgressEventName, refreshDocumentProgress);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   async function persistMuseum(nextMuseum: MuseumData, successMessage: string) {
     const previousMuseum = museum;
@@ -242,7 +286,7 @@ function MuseumView({ variant = 'desktop', onOpenMusic, onOpenVideo }: MuseumVie
                   className={`museum-work-item ${work.id === selectedWork.id ? 'active' : ''}`}
                   key={work.id}
                   type="button"
-                  onClick={() => setSelectedId(work.id)}
+                  onClick={() => selectMuseumWork(work.id)}
                 >
                   <span>{work.year}</span>
                   <strong>{work.title}</strong>
@@ -369,6 +413,39 @@ function MuseumView({ variant = 'desktop', onOpenMusic, onOpenVideo }: MuseumVie
                 })
               ) : (
                 <span>暂无关联音乐</span>
+              )}
+            </section>
+
+            <section className="museum-media-card">
+              <div>
+                <FileText size={18} aria-hidden="true" />
+                <strong>典藏文献</strong>
+              </div>
+              {selectedWork.documents.length ? (
+                selectedWork.documents.map((doc) => (
+                  <button
+                    aria-label={`阅读 ${doc.title} ${doc.pageStart}-${doc.pageEnd} 页 PDF`}
+                    className="museum-document-link"
+                    key={doc.id}
+                    type="button"
+                    onClick={() => onOpenDocument?.(selectedWork, doc)}
+                  >
+                    <span className="museum-document-meta">PDF 典藏资料</span>
+                    <strong>{doc.title}</strong>
+                    <span className="museum-document-action">
+                      <em>
+                        {doc.pageStart}-{doc.pageEnd} 页
+                      </em>
+                      <small>
+                        {documentProgress[getMuseumPdfProgressKey(selectedWork.id, doc.id)]
+                          ? `上次读到 ${getClampedDocumentProgressPage(documentProgress[getMuseumPdfProgressKey(selectedWork.id, doc.id)].page, doc)} 页`
+                          : '点击阅读 PDF'}
+                      </small>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <span>暂无关联文献</span>
               )}
             </section>
           </div>

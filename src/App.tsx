@@ -22,7 +22,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import gsap from 'gsap';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BlogView from './components/BlogView';
 import AdminMediaPanel from './components/AdminMediaPanel';
 import DemucsWorkbench from './components/DemucsWorkbench';
@@ -30,13 +30,16 @@ import LyricTimingWorkbench from './components/LyricTimingWorkbench';
 import MobileShell from './components/MobileShell';
 import MuseumView from './components/MuseumView';
 import MiniMusicPlayer from './components/MiniMusicPlayer';
+import MarkdownNoteConverter from './components/MarkdownNoteConverter';
 import MusicView from './components/MusicView';
 import QuizBankWorkbench from './components/QuizBankWorkbench';
 import VideoView from './components/VideoView';
+import WaterDistortionVeil from './components/WaterDistortionVeil';
 import WhisperWorkbench from './components/WhisperWorkbench';
 import { SpotlightCard } from './components/ui/SpotlightCard';
 import { LyricPictureInPictureProvider } from './context/LyricPictureInPictureContext';
 import { MusicPlayerProvider } from './context/MusicPlayerContext';
+import type { MuseumDocument, MuseumWork } from './data/fatalFrameMuseum';
 import { blogPosts } from './lib/blogPosts';
 import type { MobileToolCategory, MobileToolMode, NavKey, ToolCategory, ToolDefinition } from './types/toolbox';
 import useInterfaceMotion from './hooks/useInterfaceMotion';
@@ -51,6 +54,8 @@ const categoryLabels: Record<ToolCategory, string> = {
   image: '图片工具',
   text: '文本工具',
 };
+
+const MuseumPdfReader = lazy(() => import('./components/MuseumPdfReader'));
 
 const tools: ToolDefinition[] = [
   {
@@ -110,6 +115,14 @@ const tools: ToolDefinition[] = [
     icon: 'quiz',
   },
   {
+    id: 'markdown-note-converter',
+    name: 'Markdown 笔记转换',
+    category: 'text',
+    description: '把 Markdown 和 frontmatter 转为个人主页笔记可用的 HTML 片段和 manifest article JSON。',
+    status: 'ready',
+    icon: 'text',
+  },
+  {
     id: 'text-cleaner',
     name: '文本清洗',
     category: 'text',
@@ -155,6 +168,11 @@ const toolIcons: Record<ToolDefinition['icon'], typeof AudioWaveform> = {
 
 const toolCategoryKeys: ToolCategory[] = ['audio', 'image', 'text'];
 
+type MuseumPdfSelection = {
+  document: MuseumDocument;
+  work: MuseumWork;
+};
+
 function isToolCategory(key: NavKey): key is ToolCategory {
   return toolCategoryKeys.includes(key as ToolCategory);
 }
@@ -164,6 +182,8 @@ function App() {
   const [selectedToolId, setSelectedToolId] = useState(tools[0].id);
   const [mobileToolCategory, setMobileToolCategory] = useState<MobileToolCategory>('all');
   const [mobileToolMode, setMobileToolMode] = useState<MobileToolMode>('list');
+  const [museumPdfSelection, setMuseumPdfSelection] = useState<MuseumPdfSelection | null>(null);
+  const [selectedMuseumWorkId, setSelectedMuseumWorkId] = useState('');
   const [whisperSeedPath, setWhisperSeedPath] = useState('');
   const [query, setQuery] = useState('');
   const mediaLibrary = useRuntimeMediaLibrary();
@@ -222,6 +242,12 @@ function App() {
             : `${tools.length} 个入口`;
   useInterfaceMotion(workspaceRef, [activeNav]);
 
+  useEffect(() => {
+    if (activeNav !== 'museum') {
+      setMuseumPdfSelection(null);
+    }
+  }, [activeNav]);
+
   function selectFirstToolInCategory(category: ToolCategory) {
     const nextTool = tools.find((tool) => tool.category === category);
     if (nextTool) {
@@ -258,6 +284,7 @@ function App() {
       <div className="grain" />
       <div className="pattern-veil" aria-hidden="true" />
       <div className="image-veil" aria-hidden="true" />
+      <WaterDistortionVeil />
       <aside className="sidebar" aria-label="工具分类">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
@@ -326,13 +353,29 @@ function App() {
           ) : showBlog ? (
             <BlogView />
           ) : showMuseum ? (
-            <MuseumView onOpenMusic={() => setActiveNav('music')} onOpenVideo={() => setActiveNav('video')} />
+            museumPdfSelection ? (
+              <Suspense fallback={<div className="museum-pdf-state"><strong>正在准备阅读器</strong></div>}>
+                <MuseumPdfReader
+                  document={museumPdfSelection.document}
+                  work={museumPdfSelection.work}
+                  onBack={() => setMuseumPdfSelection(null)}
+                />
+              </Suspense>
+            ) : (
+              <MuseumView
+                selectedWorkId={selectedMuseumWorkId}
+                onSelectWork={setSelectedMuseumWorkId}
+                onOpenDocument={(work, document) => setMuseumPdfSelection({ document, work })}
+                onOpenMusic={() => setActiveNav('music')}
+                onOpenVideo={() => setActiveNav('video')}
+              />
+            )
           ) : showMusic ? (
             <MusicView />
           ) : showVideo ? (
             <VideoView videos={mediaLibrary.videos} />
           ) : (
-            <div className={`home-dashboard ${['audio-harvester', 'lyric-timing', 'demucs-vocals', 'quiz-bank'].includes(selectedTool.id) ? 'home-dashboard-tool-active' : ''}`}>
+            <div className={`home-dashboard ${['audio-harvester', 'lyric-timing', 'demucs-vocals', 'quiz-bank', 'markdown-note-converter'].includes(selectedTool.id) ? 'home-dashboard-tool-active' : ''} ${selectedTool.id === 'markdown-note-converter' ? 'home-dashboard-markdown-note' : ''}`}>
               <ToolWorkbench tool={selectedTool} onUseWhisperInput={useDemucsOutputInWhisper} whisperSeedPath={whisperSeedPath} />
             </div>
           )}
@@ -533,6 +576,10 @@ function ToolWorkbench({
 
   if (tool.id === 'quiz-bank') {
     return <QuizBankWorkbench />;
+  }
+
+  if (tool.id === 'markdown-note-converter') {
+    return <MarkdownNoteConverter />;
   }
 
   return (

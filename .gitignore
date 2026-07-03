@@ -26,3 +26,6 @@ data/**/*.webm
 
 # Large local video assets are not stored in git.
 public/videos/
+
+# Local museum PDFs are deployed separately and must not be committed.
+public/documents/museum/*.pdf

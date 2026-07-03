@@ -42,6 +42,7 @@
 .museum-favorite,
 .museum-edit-button,
 .museum-media-card button,
+.museum-media-card a,
 .museum-save-button,
 .museum-editor-head button {
   min-height: 34px;
@@ -54,7 +55,8 @@
 
 .museum-filter-row button,
 .museum-progress-options button,
-.museum-media-card button {
+.museum-media-card button,
+.museum-media-card a {
   padding: 0 11px;
 }
 
@@ -142,6 +144,17 @@
   background:
     radial-gradient(circle at 50% 12%, oklch(55% 0.13 26 / 0.24), transparent 48%),
     oklch(13% 0.016 30);
+}
+
+.museum-work-pdf-cover img {
+  display: block;
+  width: auto !important;
+  max-width: 100%;
+  height: auto !important;
+  max-height: 100%;
+  border-radius: 4px;
+  background: oklch(94% 0.01 70);
+  box-shadow: 0 16px 44px oklch(2% 0.01 20 / 0.42);
 }
 
 .museum-title-block {
@@ -262,7 +275,7 @@
 
 .museum-media-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
@@ -283,9 +296,498 @@
   color: oklch(94% 0.014 56);
 }
 
-.museum-media-card span,
+.museum-media-card > span,
 .museum-message {
   color: oklch(70% 0.025 55);
+}
+
+.museum-media-card .museum-document-link {
+  position: relative;
+  display: grid;
+  gap: 13px;
+  min-height: auto;
+  padding: 24px 16px 26px;
+  margin: 10px 0 4px;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.museum-document-link:hover,
+.museum-document-link:focus-visible {
+  border-color: oklch(59% 0.12 28 / 0.64);
+  background:
+    radial-gradient(circle at 18% 0%, oklch(56% 0.13 25 / 0.18), transparent 56%),
+    oklch(20% 0.026 30 / 0.84);
+  transform: translateY(-1px);
+}
+
+.museum-document-meta {
+  color: oklch(68% 0.03 52);
+  font-family: var(--font-latin);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+.museum-document-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 8px;
+  margin-bottom: 2px;
+}
+
+.museum-document-link strong {
+  max-width: 100%;
+  color: oklch(94% 0.014 56);
+  font-size: 0.94rem;
+  line-height: 1.28;
+}
+
+.museum-document-link em,
+.museum-document-link small {
+  color: oklch(69% 0.03 52);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.museum-document-link small {
+  color: oklch(82% 0.035 52);
+  font-weight: 800;
+  margin-left: auto;
+}
+
+.museum-pdf-reader {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  gap: 14px;
+}
+
+.museum-pdf-reader-head,
+.museum-pdf-toolbar,
+.museum-pdf-stage {
+  border: 1px solid oklch(46% 0.052 42 / 0.48);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, oklch(20% 0.02 34 / 0.58), transparent 42%),
+    oklch(15% 0.014 32 / 0.84);
+  box-shadow: 0 24px 80px oklch(3% 0.01 20 / 0.28);
+}
+
+.museum-pdf-reader-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+}
+
+.museum-pdf-reader-head h2 {
+  margin: 0;
+  color: oklch(96% 0.012 57);
+  font-family: var(--font-display);
+  font-size: 1.42rem;
+  line-height: 1.12;
+}
+
+.museum-pdf-reader-head span {
+  display: block;
+  margin-top: 6px;
+  color: oklch(70% 0.025 55);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.museum-pdf-reader-head button,
+.museum-pdf-reader-head a,
+.museum-pdf-toolbar button,
+.museum-pdf-toolbar label,
+.museum-pdf-immersive-head button,
+.museum-pdf-immersive-dock button,
+.museum-pdf-immersive-dock label,
+.museum-pdf-state a {
+  min-height: 36px;
+  border: 1px solid oklch(48% 0.06 36 / 0.5);
+  border-radius: 7px;
+  color: oklch(88% 0.022 55);
+  background: oklch(15% 0.018 29 / 0.78);
+  font-weight: 900;
+}
+
+.museum-pdf-reader-head button,
+.museum-pdf-reader-head a,
+.museum-pdf-toolbar button,
+.museum-pdf-immersive-head button,
+.museum-pdf-immersive-dock button,
+.museum-pdf-state a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.museum-pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+}
+
+.museum-pdf-toolbar button:disabled,
+.museum-pdf-immersive-dock button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.museum-pdf-toolbar label,
+.museum-pdf-immersive-dock label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.museum-pdf-toolbar input,
+.museum-pdf-immersive-dock input {
+  width: 56px;
+  border: 0;
+  color: oklch(96% 0.012 57);
+  background: transparent;
+  font: inherit;
+  font-weight: 900;
+  text-align: center;
+}
+
+.museum-pdf-toolbar span,
+.museum-pdf-immersive-dock span {
+  color: oklch(69% 0.03 52);
+  font-size: 0.82rem;
+}
+
+.museum-pdf-stage {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  text-align: center;
+}
+
+.museum-pdf-page {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-width: min(100%, var(--museum-pdf-page-width, 320px));
+  min-height: var(--museum-pdf-page-height, 320px);
+  isolation: isolate;
+}
+
+.museum-pdf-page-turn-next {
+  --museum-pdf-page-enter-x: 12px;
+}
+
+.museum-pdf-page-turn-previous {
+  --museum-pdf-page-enter-x: -12px;
+}
+
+.museum-pdf-page-turn-jump {
+  --museum-pdf-page-enter-x: 0;
+}
+
+.museum-pdf-immersive-stage .museum-pdf-page-turn-next,
+.museum-pdf-immersive-stage .museum-pdf-page-turn-previous {
+  --museum-pdf-page-enter-x: 0;
+}
+
+.museum-pdf-canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin: 0 auto;
+  border-radius: 4px;
+  background: oklch(94% 0.01 70);
+  box-shadow: 0 18px 60px oklch(2% 0.01 20 / 0.44);
+}
+
+.museum-pdf-page-settling .museum-pdf-canvas {
+  animation: museum-pdf-page-settle 220ms ease-out both;
+  will-change: opacity, filter;
+}
+
+.museum-pdf-page-settling-a .museum-pdf-canvas {
+  animation-name: museum-pdf-page-settle-a;
+}
+
+.museum-pdf-page-settling-b .museum-pdf-canvas {
+  animation-name: museum-pdf-page-settle-b;
+}
+
+.museum-pdf-immersive-stage .museum-pdf-page-settling::after {
+  position: absolute;
+  inset: -18px;
+  z-index: 2;
+  content: '';
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, oklch(56% 0.14 28 / 0.08), transparent 38%),
+    linear-gradient(90deg, transparent, oklch(58% 0.12 28 / 0.04), transparent);
+  mix-blend-mode: screen;
+  animation: museum-pdf-exposure 220ms ease-out both;
+}
+
+.museum-pdf-stage .museum-pdf-canvas {
+  cursor: zoom-in;
+}
+
+@keyframes museum-pdf-page-settle {
+  0% {
+    opacity: 0.68;
+    filter: sepia(0.12) brightness(0.84);
+  }
+
+  100% {
+    opacity: 1;
+    filter: sepia(0) brightness(1);
+  }
+}
+
+@keyframes museum-pdf-page-settle-a {
+  0% {
+    opacity: 0.68;
+    filter: sepia(0.12) brightness(0.84);
+  }
+
+  100% {
+    opacity: 1;
+    filter: sepia(0) brightness(1);
+  }
+}
+
+@keyframes museum-pdf-page-settle-b {
+  0% {
+    opacity: 0.68;
+    filter: sepia(0.12) brightness(0.84);
+  }
+
+  100% {
+    opacity: 1;
+    filter: sepia(0) brightness(1);
+  }
+}
+
+@keyframes museum-pdf-exposure {
+  0% {
+    opacity: 0.28;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.museum-pdf-state {
+  display: grid;
+  min-height: 320px;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: oklch(78% 0.025 55);
+}
+
+.museum-pdf-state strong {
+  color: oklch(94% 0.014 56);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+}
+
+.museum-pdf-state span {
+  max-width: 58ch;
+  line-height: 1.6;
+}
+
+.museum-pdf-rendering {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 3;
+  display: inline-flex;
+  padding: 6px 10px;
+  border: 1px solid oklch(48% 0.06 36 / 0.5);
+  border-radius: 999px;
+  color: oklch(86% 0.022 55);
+  background: oklch(12% 0.014 30 / 0.82);
+  font-size: 0.8rem;
+  font-weight: 900;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.museum-pdf-render-error {
+  display: inline-flex;
+  margin-bottom: 12px;
+  padding: 7px 10px;
+  border: 1px solid oklch(55% 0.11 28 / 0.5);
+  border-radius: 7px;
+  color: oklch(88% 0.04 42);
+  background: oklch(18% 0.03 28 / 0.84);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.museum-pdf-immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: block;
+  padding: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 0%, oklch(32% 0.08 28 / 0.26), transparent 38%),
+    oklch(8% 0.014 28 / 0.96);
+}
+
+.museum-pdf-immersive-head,
+.museum-pdf-immersive-dock {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid oklch(46% 0.052 42 / 0.5);
+  border-radius: 8px;
+  opacity: 0.84;
+  background: oklch(12% 0.014 29 / 0.78);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 58px oklch(2% 0.01 20 / 0.4);
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease;
+}
+
+.museum-pdf-immersive-head {
+  top: 18px;
+  left: 18px;
+  max-width: min(180px, calc(100% - 112px));
+  justify-content: flex-start;
+}
+
+.museum-pdf-immersive-dock {
+  top: 50%;
+  right: 18px;
+  width: 72px;
+  justify-content: stretch;
+  transform: translateY(-50%);
+}
+
+.museum-pdf-immersive-dock button,
+.museum-pdf-immersive-dock label {
+  width: 100%;
+}
+
+.museum-pdf-immersive-dock button {
+  min-height: 42px;
+  padding: 0;
+}
+
+.museum-pdf-immersive-dock .museum-pdf-immersive-page-control {
+  display: grid;
+  box-sizing: border-box;
+  grid-template-rows: 1fr auto;
+  min-height: 58px;
+  justify-items: center;
+  gap: 2px;
+  overflow: hidden;
+  padding: 7px 6px;
+}
+
+.museum-pdf-immersive-dock .museum-pdf-immersive-page-control input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  font-size: 0.95rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.museum-pdf-immersive-dock .museum-pdf-immersive-page-control span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.museum-pdf-immersive-head:hover,
+.museum-pdf-immersive-head:focus-within,
+.museum-pdf-immersive-dock:hover,
+.museum-pdf-immersive-dock:focus-within {
+  opacity: 1;
+  background: oklch(14% 0.016 30 / 0.92);
+}
+
+.museum-pdf-immersive-head > div {
+  min-width: min(320px, 100%);
+  margin: 0 auto 0 0;
+}
+
+.museum-pdf-immersive-head strong {
+  display: block;
+  overflow: hidden;
+  color: oklch(96% 0.012 57);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.museum-pdf-immersive-stage {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  overflow: auto;
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+  padding: 0 104px 0 0;
+  border: 1px solid oklch(46% 0.052 42 / 0.48);
+  border-radius: 8px;
+  background: oklch(10% 0.012 29 / 0.92);
+  text-align: center;
+}
+
+.museum-pdf-immersive-stage .museum-pdf-page {
+  box-sizing: border-box;
+  width: var(--museum-pdf-page-width, 320px);
+  min-width: var(--museum-pdf-page-width, 320px);
+  max-width: none;
+  margin: 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .museum-pdf-page-settling .museum-pdf-canvas,
+  .museum-pdf-immersive-stage .museum-pdf-page-settling::after {
+    animation: none;
+  }
+
+  .museum-pdf-immersive-stage .museum-pdf-page-settling::after {
+    display: none;
+  }
 }
 
 .museum-message {
@@ -385,5 +887,88 @@
     z-index: auto;
     width: 100%;
     overflow: visible;
+  }
+
+  .museum-pdf-reader {
+    height: auto;
+  }
+
+  .museum-pdf-reader-head {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .museum-pdf-reader-head button,
+  .museum-pdf-reader-head a {
+    width: fit-content;
+  }
+
+  .museum-pdf-reader-head h2 {
+    font-size: 1.15rem;
+  }
+
+  .museum-pdf-stage {
+    overflow: visible;
+    padding: 12px;
+  }
+
+  .museum-pdf-toolbar {
+    justify-content: stretch;
+  }
+
+  .museum-pdf-toolbar button,
+  .museum-pdf-toolbar label {
+    flex: 1 1 auto;
+  }
+
+  .museum-pdf-immersive {
+    padding: 0;
+  }
+
+  .museum-pdf-immersive-head {
+    top: calc(10px + env(safe-area-inset-top));
+    left: 10px;
+    max-width: calc(100% - 20px);
+    justify-content: stretch;
+    opacity: 0.78;
+  }
+
+  .museum-pdf-immersive-head > div {
+    flex: 1 0 100%;
+    order: -1;
+  }
+
+  .museum-pdf-immersive-dock {
+    top: auto;
+    right: 10px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    left: 10px;
+    width: auto;
+    justify-content: stretch;
+    transform: none;
+  }
+
+  .museum-pdf-immersive-head button,
+  .museum-pdf-immersive-dock button,
+  .museum-pdf-immersive-dock label {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .museum-pdf-immersive-dock button {
+    min-width: 42px;
+  }
+
+  .museum-pdf-immersive-page-control {
+    min-width: 66px;
+  }
+
+  .museum-pdf-immersive-stage {
+    inset: 0;
+    padding: calc(58px + env(safe-area-inset-top)) 0 env(safe-area-inset-bottom);
+    border: 0;
+    border-radius: 0;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
   }
 }
